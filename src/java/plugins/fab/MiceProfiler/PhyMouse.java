@@ -2179,7 +2179,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
 									+ out[x + y * currentScale.width]);
 						}
 
-						// calcul des barycentres propagés
+						// calculation of propagated barycentres
 
 						if (out[x + y * currentScale.width] != 0) {
 
@@ -2188,7 +2188,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
 							}
 
-							// calcul de X pour le barycentre
+							// X calculation for barycentre
 
 							currentScale.barycenterX[x + y * currentScale.width] =
 

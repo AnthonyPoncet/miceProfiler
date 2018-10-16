@@ -554,8 +554,6 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         }
     }
 
-    // AviFile aviFile;
-
     public void displayRelativeFrame( int nbFrame )
     {
     	sliderTime.setValue(sliderTime.getValue() + nbFrame );
@@ -1041,7 +1039,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
                         if (frameEnd > aviFile.getTotalNumberOfFrame())
                             frameEnd = (int) aviFile.getTotalNumberOfFrame();
 
-                        // enleve les images hors fenetre (excepté la dernière)
+                        // enleve les images hors fenetre (exceptï¿½ la derniï¿½re)
                         for (int t = 0; t < sequenceOut.getSizeT() - 1; t++)
                         {
                             if (Math.abs(t - currentFrame) > fenetre + 10)

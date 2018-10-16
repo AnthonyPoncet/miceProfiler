@@ -32,6 +32,18 @@
             <artifactId>jmf</artifactId>
             <version>LATEST</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>19.0</version>
+        </dependency>
+        <dependency>
+            <groupId>icy</groupId>
+            <artifactId>action</artifactId>
+            <version>1.0.0</version>
+            <scope>system</scope>
+            <systemPath>D:/Downloads/icy/icy.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>
@@ -39,6 +51,6 @@
         <outputDirectory>target/classes</outputDirectory>
         <finalName>${artifactId}-${version}</finalName>
         <testOutputDirectory>target/test-classes</testOutputDirectory>
-        <sourceDirectory>plugins/fab/MiceProfiler</sourceDirectory>
+        <sourceDirectory>src/java</sourceDirectory>
     </build>
 </project>

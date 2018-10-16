@@ -1,5 +1,7 @@
 package plugins.fab.MiceProfiler;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import icy.canvas.IcyCanvas;
 import icy.canvas.IcyCanvas2D;
 import icy.painter.Anchor2D;
@@ -20,79 +22,62 @@ import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import javax.swing.JSlider;
-
 /** this helper is dedicated to help manual correction. */
 public class ManualHelper extends Overlay implements SequenceListener {
 
-	enum MODE {
-		NO_ACTION_MODE, RECORD_MODE
-	}
-	
-	/** list of anchors created by this overlay. */
-	ArrayList<MAnchor2D> activeAnchorList = new ArrayList<MAnchor2D>();
+    private enum MODE { NO_ACTION_MODE, RECORD_MODE }
 
-	ArrayList<MAnchor2D> controlPointList = new ArrayList<MAnchor2D>();
-	HashMap<Integer, MAnchor2D> time2controlPointMap = new HashMap<Integer, MAnchor2D>();
-	Color color;
-	/** Previous time position of the canvas. Stored to update the painter */
-	int previousTPosition =-1;
-	MODE currentMode = MODE.NO_ACTION_MODE;
-	int mouseNumber ;
-	/** static font for absolute text */
-	Font absoluteFont = new Font("Arial", Font.BOLD , 15 );
+    /** static font for absolute text */
+    private final static Font ABSOLUTE_FONT = new Font("Arial", Font.BOLD , 15 );
+
+    /** list of anchors created by this overlay. */
+	private final ArrayList<MAnchor2D> activeAnchorList = Lists.newArrayList();
+
+    /** TODO: What is that ? **/
+	private final HashMap<Integer, MAnchor2D> time2controlPointMap = Maps.newHashMap();
+    private final Color color;
+
+    /** Previous time position of the canvas. Stored to update the painter */
+	private final int previousTPosition = -1;
+    private final MODE currentMode = MODE.NO_ACTION_MODE;
+    private final int mouseNumber;
+
 	/** switchModeKeyCode is the key to switch from edit to record mode. -1 if more than 10 mice are loaded. */
-	int switchModeKeyCode;
+	private final int switchModeKeyCode;
 	
 	/** list of all manual helper to disable certain action like record mode when an other engage it.*/
-	static ArrayList<ManualHelper> manualHelperList = new ArrayList<ManualHelper>();
-	Sequence sequence ;
-	/** slider in the MiceProfilerInterfaceTracker. Kept for automatic seeking*/
-	//JSlider sliderTime;
-	
-	public ManualHelper(String name, Color color , int mouseNumber , Sequence sequence ) {
+	private final static ArrayList<ManualHelper> manualHelperList = Lists.newArrayList();
+
+
+	public ManualHelper(String name, Color color, int mouseNumber, Sequence sequence) {
 		super(name);
-		
-		this.sequence = sequence;
-		sequence.addListener( this );
-		
-		this.color = color;
-		this.mouseNumber = mouseNumber;
-		//this.sliderTime = sliderTime;
-		
-		if ( mouseNumber < 10 )
-		{
-			switchModeKeyCode = mouseNumber+48;
-		}
-		
-		// record itself
-		manualHelperList.add( this );
-		
-		// create some sample points
-		
-//		for ( int t = 0 ; t< 100 ; t++)
-//		{
-//			setControlPoint( t*5 + Math.random() * 5, t*5 + Math.random() * 5, t );
-//		}
-		setPriority( OverlayPriority.TEXT_NORMAL );
-		
+        this.color = color;
+        this.mouseNumber = mouseNumber;
+
+        sequence.addListener(this);
+        // record itself
+        manualHelperList.add(this);
+
+        if (mouseNumber < 10) {
+            switchModeKeyCode = mouseNumber + 48;
+
+        }
+
+		setPriority(OverlayPriority.TEXT_NORMAL);
 	}
 
-	void setControlPoint( double x, double y , int t )
-	{
-		MAnchor2D a = time2controlPointMap.get( t );
-		if ( a == null )
-		{
-			a = new MAnchor2D( x, y);
-			time2controlPointMap.put( t , a );
-		}else
-		{
+
+	private void setControlPoint(double x, double y, int t) {
+		MAnchor2D a = time2controlPointMap.get(t);
+		if (a == null) {
+			a = new MAnchor2D(x, y);
+			time2controlPointMap.put(t, a);
+		} else {
 			a.setPosition(x, y);
 		}
 	}
 	
-	MAnchor2D getControlPoint( int t )
-	{		
+	MAnchor2D getControlPoint(int t) {
 		return time2controlPointMap.get( t );
 	}
 	
@@ -100,7 +85,7 @@ public class ManualHelper extends Overlay implements SequenceListener {
 	{
 		AffineTransform transform = g.getTransform();		
 		g.transform( canvas.getInverseTransform() );		
-		g.setFont( absoluteFont );
+		g.setFont(ABSOLUTE_FONT);
 		g.drawString( string , x, y );
 		g.setTransform( transform );
 	}
