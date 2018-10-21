@@ -5,10 +5,7 @@ import icy.sequence.Sequence;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.text.DateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+import java.util.*;
 
 import javax.media.Time;
 
@@ -41,8 +38,7 @@ public class XugglerAviFile
     private int offset;
     private final boolean fast;
 
-    public XugglerAviFile(String filename, boolean fast) throws IOException, IllegalArgumentException
-    {
+    public XugglerAviFile(String filename, boolean fast) throws IOException, IllegalArgumentException {
         super();
 
         this.filename = filename;
@@ -53,33 +49,32 @@ public class XugglerAviFile
 
         container = getContainerAndCoder();
 
-        if (videoCoder.getPixelType() != Type.BGR24)
-        {
+        if (videoCoder.getPixelType() != Type.BGR24) {
             // if this stream is not in BGR24, we're going to need to convert it.
             // The VideoResampler does that for us.
-            resampler = IVideoResampler.make(videoCoder.getWidth(), videoCoder.getHeight(), Type.BGR24,
-                    videoCoder.getWidth(), videoCoder.getHeight(), videoCoder.getPixelType());
+            resampler = IVideoResampler.make(videoCoder.getWidth(), videoCoder.getHeight(), Type.BGR24, videoCoder.getWidth(), videoCoder.getHeight(), videoCoder.getPixelType());
             if (resampler == null)
                 throw new RuntimeException("Could not create color space " + "resampler for: " + filename);
         }
 
-        converter = ConverterFactory.createConverter("XUGGLER-BGR-24", Type.BGR24, videoCoder.getWidth(),
-                videoCoder.getHeight());
+        converter = ConverterFactory.createConverter("XUGGLER-BGR-24", Type.BGR24, videoCoder.getWidth(), videoCoder.getHeight());
         packet = IPacket.make();
 
         // build key frames index (sorted)
-        final ArrayList<Long> keys = new ArrayList<Long>();
+        List<Long> keys = new ArrayList<Long>();
 
-        while (container.readNextPacket(packet) >= 0)
-            if (packet.getStreamIndex() == streamId)
+        while (container.readNextPacket(packet) >= 0) {
+            if (packet.getStreamIndex() == streamId) {
                 if (packet.isKey())
-                    keys.add(Long.valueOf(packet.getTimeStamp()));
+                    keys.add(packet.getTimeStamp());
+            }
+        }
 
-        final int size = keys.size();
+        int size = keys.size();
         keyFrames = new long[size];
 
         for (int i = 0; i < size; i++)
-            keyFrames[i] = keys.get(i).longValue();
+            keyFrames[i] = keys.get(i);
 
         if (size > 0)
             startFrame = keyFrames[0];
@@ -87,34 +82,31 @@ public class XugglerAviFile
             startFrame = 0;
     }
 
-    private IContainer getContainerAndCoder() throws IOException
-    {
+    private IContainer getContainerAndCoder() throws IOException {
         if (videoCoder != null)
             videoCoder.close();
         if (container != null)
             container.close();
 
         // Xuggler container object
-        final IContainer result = IContainer.make();
+        IContainer result = IContainer.make();
 
         // Open up the container
         if (result.open(filename, IContainer.Type.READ, null) < 0)
             throw new IllegalArgumentException("Could not open file.");
 
         // query how many streams the call to open found
-        final int numStreams = result.getNumStreams();
+        int numStreams = result.getNumStreams();
 
         // and iterate through the streams to find the first video stream
         videoCoder = null;
-        for (int i = 0; i < numStreams; ++i)
-        {
+        for (int i = 0; i < numStreams; ++i) {
             // Find the stream object
-            final IStream stream = result.getStream(i);
+            IStream stream = result.getStream(i);
             // Get the pre-configured decoder that can decode this stream;
-            final IStreamCoder coder = stream.getStreamCoder();
+            IStreamCoder coder = stream.getStreamCoder();
 
-            if (coder.getCodec().getType() == ICodec.Type.CODEC_TYPE_VIDEO)
-            {
+            if (coder.getCodec().getType() == ICodec.Type.CODEC_TYPE_VIDEO) {
                 streamId = i;
                 frameRate = stream.getFrameRate().getValue();
                 numFrames = stream.getNumFrames();
@@ -136,16 +128,14 @@ public class XugglerAviFile
         return result;
     }
 
-    private long getKeyFrame(long frame)
-    {
+    private long getKeyFrame(long frame) {
         // no key frame --> juste return frame
         if (keyFrames.length == 0)
             return frame;
 
-        final int index = Arrays.binarySearch(keyFrames, frame);
+        int index = Arrays.binarySearch(keyFrames, frame);
 
-        if (index < 0)
-        {
+        if (index < 0) {
             if (index == -1)
                 return keyFrames[0];
 
@@ -158,19 +148,14 @@ public class XugglerAviFile
     /**
      * Seek to desired frame.
      */
-    private boolean seek(long frame)
-    {
-        final long adjustedFrame = frame + startFrame;
+    private boolean seek(long frame) {
+        long adjustedFrame = frame + startFrame;
 
-        if (container.seekKeyFrame(streamId, getKeyFrame(adjustedFrame), IURLProtocolHandler.SEEK_SET) < 0)
-        {
+        if (container.seekKeyFrame(streamId, getKeyFrame(adjustedFrame), IURLProtocolHandler.SEEK_SET) < 0) {
             // seek operation not supported --> just reset container
-            try
-            {
+            try {
                 container = getContainerAndCoder();
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 return false;
             }
         }
@@ -178,8 +163,7 @@ public class XugglerAviFile
         return true;
     }
 
-    private boolean readNext()
-    {
+    private boolean readNext() {
         if (container.readNextPacket(packet) < 0)
             return false;
 
@@ -188,8 +172,7 @@ public class XugglerAviFile
         return true;
     }
 
-    private boolean decodeNext(IVideoPicture picture)
-    {
+    private boolean decodeNext(IVideoPicture picture) {
         if (offset >= packet.getSize())
             return readNext();
 
@@ -209,16 +192,12 @@ public class XugglerAviFile
         return true;
     }
 
-    private IVideoPicture getNextPicture()
-    {
-        final IVideoPicture result = IVideoPicture.make(videoCoder.getPixelType(), videoCoder.getWidth(),
-                videoCoder.getHeight());
+    private IVideoPicture getNextPicture() {
+        IVideoPicture result = IVideoPicture.make(videoCoder.getPixelType(), videoCoder.getWidth(), videoCoder.getHeight());
 
-        while (!result.isComplete())
-        {
+        while (!result.isComplete()) {
             // we are on the video stream
-            if (packet.getStreamIndex() == streamId)
-            {
+            if (packet.getStreamIndex() == streamId) {
                 if (!decodeNext(result))
                     return null;
             }
@@ -229,19 +208,17 @@ public class XugglerAviFile
         return result;
     }
 
-    private BufferedImage convertPicture(IVideoPicture picture)
-    {
+    private BufferedImage convertPicture(IVideoPicture picture) {
         if (picture == null)
             return null;
 
-        final IVideoPicture newPicture;
+        IVideoPicture newPicture;
 
         /*
          * If resampler is not null, that means we didn't get the video
          * in BGR24 format and need to convert it into BGR24 format.
          */
-        if (resampler != null)
-        {
+        if (resampler != null) {
             // we must resample
             newPicture = IVideoPicture.make(resampler.getOutputPixelFormat(), picture.getWidth(), picture.getHeight());
             if (resampler.resample(newPicture, picture) < 0)
@@ -257,16 +234,11 @@ public class XugglerAviFile
         return converter.toImage(newPicture);
     }
 
-    private synchronized BufferedImage getImageInternal(int frame)
-    {
-        if (!fast)
-        {
-            try
-            {
+    private synchronized BufferedImage getImageInternal(int frame) {
+        if (!fast) {
+            try {
                 container = getContainerAndCoder();
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 e.printStackTrace();
                 return null;
             }
@@ -280,14 +252,12 @@ public class XugglerAviFile
         }
 
         IVideoPicture picture = null;
-        final long adjustedFrame = frame + startFrame;
+        long adjustedFrame = frame + startFrame;
 
         boolean done = false;
         int retry = 0;
-        while (!done && (retry < 50))
-        {
-            while (!done)
-            {
+        while (!done && (retry < 50)) {
+            while (!done) {
                 /*
                  * We allocate a new picture to get the data out of Xuggler
                  */
@@ -298,8 +268,7 @@ public class XugglerAviFile
                     break;
 
                 // get picture frame
-                final long pictureFrame = Math.round(picture.getTimeStamp() * picture.getTimeBase().getValue()
-                        * frameRate);
+                long pictureFrame = Math.round(picture.getTimeStamp() * picture.getTimeBase().getValue() * frameRate);
 
                 // too far --> interrupt
                 if (pictureFrame > adjustedFrame)
@@ -309,8 +278,7 @@ public class XugglerAviFile
             }
 
             // that means we go too far --> seek needed
-            if (!done)
-            {
+            if (!done) {
                 // seek
                 if (!seek(frame))
                     return null;
@@ -326,14 +294,12 @@ public class XugglerAviFile
         return convertPicture(picture);
     }
 
-    public long getTotalNumberOfFrame()
-    {
+    public long getTotalNumberOfFrame() {
         return numFrames;
     }
 
-    public String getTimeForFrame(int frame)
-    {
-        final Calendar cal = new GregorianCalendar();
+    public String getTimeForFrame(int frame) {
+        Calendar cal = new GregorianCalendar();
 
         cal.set(Calendar.HOUR_OF_DAY, 0);
         cal.set(Calendar.MINUTE, 0);
@@ -346,49 +312,24 @@ public class XugglerAviFile
         return "" + DateFormat.getTimeInstance().format(cal.getTime());
     }
 
-    public BufferedImage getImage(Time time)
-    {
+    public BufferedImage getImage(Time time) {
         if (frameRate != 0d)
             return getImage((int) (time.getSeconds() * frameRate));
 
         return null;
     }
 
-    public BufferedImage getImage(int frame)
-    {
+    public BufferedImage getImage(int frame) {
         return getImageInternal(frame);
     }
 
-    public ArrayList<BufferedImage> getImages(int index, int num)
-    {
-        final ArrayList<BufferedImage> result = new ArrayList<BufferedImage>();
+    private List<BufferedImage> getImages(int index, int num) {
+        List<BufferedImage> result = new ArrayList<BufferedImage>();
 
-        final int frameEnd = index + num;
+        int frameEnd = index + num;
 
         for (int i = index; i < frameEnd; i++)
             result.add(getImageInternal(i));
-
-        return result;
-    }
-
-    public ArrayList<BufferedImage> getImages(Sequence sequence, int index, int num)
-    {
-        final ArrayList<BufferedImage> result = getImages(index, num);
-
-        sequence.beginUpdate();
-        try
-        {
-            int i = index;
-            for (BufferedImage img : result)
-            {
-                sequence.setImage(i, 0, img);
-                i++;
-            }
-        }
-        finally
-        {
-            sequence.endUpdate();
-        }
 
         return result;
     }

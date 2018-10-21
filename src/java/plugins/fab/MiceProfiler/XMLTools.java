@@ -32,47 +32,27 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-public class XMLTools
-{
+public class XMLTools {
 
-    public static Node getSubNodeByName(Node node, String name)
-    {
-        final NodeList nodeList = node.getChildNodes();
-        for (int i = 0; i < nodeList.getLength(); i++)
-        {
-            if (nodeList.item(i).getNodeName() == name)
-            {
-                return nodeList.item(i);
-            }
-        }
-        return null;
-    }
-
-    public static Document loadDocument(File XMLFile)
-    {
-        try
-        {
-            final DocumentBuilderFactory dbfac = DocumentBuilderFactory.newInstance();
+    public static Document loadDocument(File XMLFile) {
+        try {
+            DocumentBuilderFactory dbfac = DocumentBuilderFactory.newInstance();
             DocumentBuilder docBuilder;
             docBuilder = dbfac.newDocumentBuilder();
-            final Document XMLDocument = docBuilder.parse(XMLFile);
+            Document XMLDocument = docBuilder.parse(XMLFile);
             return XMLDocument;
-        }
-        catch (final Exception e)
-        {
+        } catch (final Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    public static void saveDocument(Document XMLDocument, File XMLFile)
-    {
-        try
-        {
+    public static void saveDocument(Document XMLDocument, File XMLFile) {
+        try {
             XMLDocument.normalizeDocument();
-            final TransformerFactory transfac = TransformerFactory.newInstance();
-            transfac.setAttribute("indent-number", new Integer(4));
-            final Transformer trans = transfac.newTransformer();
+            TransformerFactory transfac = TransformerFactory.newInstance();
+            transfac.setAttribute("indent-number", 4);
+            Transformer trans = transfac.newTransformer();
 
             trans.setOutputProperty(OutputKeys.METHOD, "xml");
             trans.setOutputProperty(OutputKeys.ENCODING, "ISO-8859-1");
@@ -80,9 +60,7 @@ public class XMLTools
             trans.setOutputProperty(OutputKeys.INDENT, "yes");
 
             trans.transform(new DOMSource(XMLDocument), new StreamResult(XMLFile));
-        }
-        catch (final Exception e)
-        {
+        } catch (final Exception e) {
             e.printStackTrace();
         }
     }
