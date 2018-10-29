@@ -1,50 +1,47 @@
 package plugins.fab.MiceProfiler;
 
-import java.awt.event.MouseEvent;
-
-import icy.canvas.IcyCanvas;
-
-import icy.painter.Anchor2D;
-import icy.painter.Overlay;
-
-import icy.type.point.Point5D.Double;
+import java.awt.geom.Point2D;
 
 
-public class MAnchor2D extends Anchor2D {
+public class MouseInfoRecord {
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Instance fields
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    /** if not enabled, can't move the anchor */
-    private boolean enabled = true;
+    private final Point2D headPosition;
+    private final Point2D neckPosition; // body that links to the head to compute head angle.
+    private final Point2D bodyPosition;
+    private final Point2D tailPosition;
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Constructors
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    public MAnchor2D(double x, double y) {
-        super(x, y);
+    public MouseInfoRecord(Point2D headPosition, Point2D tailPosition, Point2D bodyPosition, Point2D neckPosition) {
+        this.headPosition = headPosition;
+        this.neckPosition = neckPosition;
+        this.bodyPosition = bodyPosition;
+        this.tailPosition = tailPosition;
     }
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Methods
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    @Override
-    public void mouseDrag(MouseEvent e, Double imagePoint, IcyCanvas canvas) {
-        if (!enabled)
-            return;
-        super.mouseDrag(e, imagePoint, canvas);
+    public Point2D getHeadPosition() {
+        return headPosition;
     }
 
-    // TODO: sort the layer here.
-    @Override
-    public int compareTo(Overlay o) {
-        return super.compareTo(o);
+    public Point2D getNeckPosition() {
+        return neckPosition;
     }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+    public Point2D getBodyPosition() {
+        return bodyPosition;
+    }
+
+    public Point2D getTailPosition() {
+        return tailPosition;
     }
 }

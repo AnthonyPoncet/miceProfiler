@@ -2,13 +2,29 @@ package plugins.fab.MiceProfiler;
 
 import icy.image.IcyBufferedImage;
 
+
 class StepThread extends Thread {
-    private MiceProfilerTracker miceProfilerTracker;
+
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Instance fields
+    //~ ----------------------------------------------------------------------------------------------------------------
+
+    private final MiceProfilerTracker miceProfilerTracker;
+    private final PhyMouse phyMouse;
     boolean shouldRun = true;
+
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Constructors
+    //~ ----------------------------------------------------------------------------------------------------------------
 
     public StepThread(MiceProfilerTracker miceProfilerTracker) {
         this.miceProfilerTracker = miceProfilerTracker;
+        this.phyMouse = miceProfilerTracker.getPhyMouse();
     }
+
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Methods
+    //~ ----------------------------------------------------------------------------------------------------------------
 
     @Override
     public void run() {
@@ -20,14 +36,13 @@ class StepThread extends Thread {
 
             IcyBufferedImage imageSource = imageSourceR; // assume good format.
 
-            phyMouse.computeForcesMap(imageSource);
-            synchronized (phyMouse)
-            {
+            synchronized (phyMouse) {
+                phyMouse.computeForcesMap(imageSource);
                 phyMouse.computeForces();
                 phyMouse.worldStep(miceProfilerTracker.getCurrentFrame());
             }
 
-            miceProfilerTracker.sequenceOut.painterChanged(null);
+            miceProfilerTracker.getSequenceOut().painterChanged(null);
         }
     }
 }

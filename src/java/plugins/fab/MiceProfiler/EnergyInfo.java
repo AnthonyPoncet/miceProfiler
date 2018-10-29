@@ -1,43 +1,48 @@
 package plugins.fab.MiceProfiler;
 
-import net.phys2d.math.ROVector2f;
-
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.collect.Lists;
+
+import net.phys2d.math.ROVector2f;
+
+
 class EnergyInfo {
-    private final boolean excludeFromAttractiveMapOwner;
-    private final boolean excludeFromOtherMouse;
+
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Instance fields
+    //~ ----------------------------------------------------------------------------------------------------------------
+
     private final float ray;
     private final EnergyMap energyMap;
+    private final boolean excludeFromOtherMouse;
 
     /**
-     * position list for motion prediction list(0) should be speed à t-1
-     * after each motion prediction, remove (0) from the list.
-     **/
-    private final List<ROVector2f> previousPositionList = new ArrayList<ROVector2f>();
+     * position list for motion prediction list(0) should be speed à t-1 after each motion prediction, remove (0) from
+     * the list.
+     */
+    public final List<ROVector2f> previousPositionList = Lists.newArrayList();
 
     /** speed */
-    private float vx = 0;
-    /** speed */
-    private float vy = 0;
-    /** mouse which own this energy */
-    private final Mouse mouse= null;
+    public float vx;
+    public float vy;
 
-    public EnergyInfo(float ray, EnergyMap energyMap, boolean excludeFromOtherMouse, boolean excludeFromAttractiveMapOwner) {
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Constructors
+    //~ ----------------------------------------------------------------------------------------------------------------
+
+    public EnergyInfo(float ray, EnergyMap energyMap, boolean excludeFromOtherMouse) {
         this.ray = ray;
         this.energyMap = energyMap;
         this.excludeFromOtherMouse = excludeFromOtherMouse;
-        this.excludeFromAttractiveMapOwner = excludeFromAttractiveMapOwner;
+        this.vx = 0;
+        this.vy = 0;
     }
 
-    public void setVx(float vx) {
-        this.vx = vx;
-    }
-
-    public void setVy(float vy) {
-        this.vy = vy;
-    }
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Methods
+    //~ ----------------------------------------------------------------------------------------------------------------
 
     public boolean isExcludeFromOtherMouse() {
         return excludeFromOtherMouse;
@@ -49,13 +54,5 @@ class EnergyInfo {
 
     public EnergyMap getEnergyMap() {
         return energyMap;
-    }
-
-    public float getVx() {
-        return vx;
-    }
-
-    public float getVy() {
-        return vy;
     }
 }

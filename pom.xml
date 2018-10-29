@@ -23,16 +23,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>xuggle</groupId>
-            <artifactId>xuggle-xuggler</artifactId>
-            <version>LATEST</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.media</groupId>
-            <artifactId>jmf</artifactId>
-            <version>LATEST</version>
-        </dependency>
-        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>19.0</version>
@@ -42,14 +32,14 @@
             <artifactId>action</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>D:/Downloads/icy/icy.jar</systemPath>
+            <systemPath>C:/Users/aponcet/Downloads/icy/icy.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>net.phys2d</groupId>
             <artifactId>raw</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>D:/Downloads/icy/lib/phys2d.jar</systemPath>
+            <systemPath>C:/Users/aponcet/Downloads/icy/lib/phys2d.jar</systemPath>
         </dependency>
     </dependencies>
 

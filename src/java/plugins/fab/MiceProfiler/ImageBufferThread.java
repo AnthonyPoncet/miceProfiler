@@ -2,22 +2,27 @@ package plugins.fab.MiceProfiler;
 
 import icy.system.thread.ThreadUtil;
 
+
 /**
- * centre l image active sur le currentFrame avec une valeur encadrante. Enleve les images inutiles
+ * Set the active image at the center of the currentFrame with an "encadrante" value. Remove useless images.
  *
  * @author Administrator
  */
 class ImageBufferThread extends Thread {
+
     private final MiceProfilerTracker miceProfilerTracker;
     private boolean pleaseStop;
     private boolean bufferOn;
+
     private final int numberOfImageForBuffer;
+    private final int totalNumberOfImage;
 
     public ImageBufferThread(MiceProfilerTracker miceProfilerTracker) {
         this.miceProfilerTracker = miceProfilerTracker;
         this.pleaseStop = false;
         this.bufferOn = true;
         this.numberOfImageForBuffer = miceProfilerTracker.getNumberOfImageForBuffer();
+        this.totalNumberOfImage = miceProfilerTracker.getTotalNumberOfFrame();
     }
 
     @Override
@@ -28,30 +33,25 @@ class ImageBufferThread extends Thread {
 
                 if (bufferOn) {
                     int cachedCurrentFrame = miceProfilerTracker.getCurrentFrame();
-                    int frameStart = miceProfilerTracker.getCurrentFrame() - 10;
-                    int frameEnd = miceProfilerTracker.getCurrentFrame() + numberOfImageForBuffer;
+                    int frameStart = Math.min(cachedCurrentFrame - 10, 0);
+                    int frameEnd = Math.max(cachedCurrentFrame + numberOfImageForBuffer, totalNumberOfImage);
 
-                    if (frameStart < 0)
-                        frameStart = 0;
-                    if (frameEnd > miceProfilerTracker.getTotalNumberOfFrame())
-                        frameEnd = (int) miceProfilerTracker.getTotalNumberOfFrame();
-
-                    // enleve les images hors numberOfImageForBuffer (except la dernire)
-                    for (int t = 0; t < miceProfilerTracker.sequenceOut.getSizeT() - 1; t++) {
-                        if (Math.abs(t - miceProfilerTracker.getCurrentFrame()) > numberOfImageForBuffer + 10) {
+                    //Remove image from sequenceOut that are outside numberOfImageForBuffer (except the last one)
+                    for (int t = 0; t < (miceProfilerTracker.getSequenceOut().getSizeT() - 1); t++) {
+                        if (Math.abs(t - miceProfilerTracker.getCurrentFrame()) > (numberOfImageForBuffer + 10)) {
                             // current frame changed --> interrupt
                             if (cachedCurrentFrame != miceProfilerTracker.getCurrentFrame())
                                 break;
                             if (pleaseStop)
                                 return;
 
-                            miceProfilerTracker.sequenceOut.removeImage(t, 0);
+                            miceProfilerTracker.getSequenceOut().removeImage(t, 0);
                         }
                     }
 
                     for (int t = frameStart; t < frameEnd; t++) {
                         if (miceProfilerTracker.getImageAt(t) == null)
-                            miceProfilerTracker.sequenceOut.setImage(t, 0, aviFile.getImage(t));
+                            miceProfilerTracker.getSequenceOut().setImage(t, 0, miceProfilerTracker.getAviFile().getImage(t));
 
                         // current frame changed --> interrupt
                         if (cachedCurrentFrame != miceProfilerTracker.getCurrentFrame())
@@ -66,7 +66,7 @@ class ImageBufferThread extends Thread {
         }
     }
 
-    public synchronized void setPleaseStop(boolean pleaseStop) {
-        this.pleaseStop = pleaseStop;
+    public synchronized void pleaseStop() {
+        this.pleaseStop = true;
     }
 }
