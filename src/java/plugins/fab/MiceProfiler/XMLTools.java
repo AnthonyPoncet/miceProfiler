@@ -37,10 +37,8 @@ public class XMLTools {
     public static Document loadDocument(File XMLFile) {
         try {
             DocumentBuilderFactory dbfac = DocumentBuilderFactory.newInstance();
-            DocumentBuilder docBuilder;
-            docBuilder = dbfac.newDocumentBuilder();
-            Document XMLDocument = docBuilder.parse(XMLFile);
-            return XMLDocument;
+            DocumentBuilder docBuilder = dbfac.newDocumentBuilder();
+            return docBuilder.parse(XMLFile);
         } catch (final Exception e) {
             e.printStackTrace();
         }

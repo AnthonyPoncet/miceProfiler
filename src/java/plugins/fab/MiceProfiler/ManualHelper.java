@@ -82,10 +82,10 @@ public class ManualHelper extends Overlay implements SequenceListener {
         this.color = color;
         this.mouseNumber = mouseNumber;
         // record itself
-        manualHelperList.add(this);
+        this.manualHelperList.add(this);
 
         if (mouseNumber < 10) {
-            switchModeKeyCode = mouseNumber + 48;
+            switchModeKeyCode = mouseNumber + KeyEvent.VK_0;
         } else {
             switchModeKeyCode = -1;
         }

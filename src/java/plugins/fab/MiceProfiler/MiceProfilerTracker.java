@@ -68,6 +68,10 @@ import icy.system.thread.ThreadUtil;
  */
 public class MiceProfilerTracker extends Plugin implements Painter, PluginImageAnalysis, ActionListener, ChangeListener, ViewerListener {
 
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Instance fields
+    //~ ----------------------------------------------------------------------------------------------------------------
+
     //Mice Profiler window (fill by compute() function)
     private final IcyFrame mainFrame = new IcyFrame("Mice Profiler", true, true, true, true);
     private final JPanel mainPanel = GuiUtil.generatePanelWithoutBorder();
@@ -91,7 +95,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     private final JButton readPositionFromROIButton = new JButton("Read starting position from Line ROI.");
     private final JButton saveXMLButton = new JButton("Save XML Data");
     private final JCheckBox limitTrackingSpeedCheckBox = new JCheckBox("Limit tracking speed to 15fps");
-    private final JComboBox mouseColorComboBox = new JComboBox(new String[] { "Track black mice", "Track white mice" });
+    private final JComboBox<String> mouseColorComboBox = new JComboBox<>(new String[] { "Track black mice", "Track white mice" });
     private final JButton reverseTrackFromTButton = new JButton("Reverse Identity (from now to end of sequence)");
     private final JButton startThreadStepButton = new JButton("Start Step Anim");
     private final JButton stopThreadStepButton = new JButton("Stop Step Anim");
@@ -118,8 +122,13 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
     private StepThread stepThread;
 
+    //~ ----------------------------------------------------------------------------------------------------------------
+    //~ Methods
+    //~ ----------------------------------------------------------------------------------------------------------------
+
     public void setSliderTimeValue(int value) {
         sliderTime.setValue(value);
+        createOrUpdateImageBuffer();
     }
 
     public void setTotalImageTimeText(String text) {
@@ -134,39 +143,11 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         return updatePhysicsGuidesCheckBox.isSelected();
     }
 
-    public int getCurrentFrame() {
-        return sliderTime.getValue();
-    }
-
-    public int getTotalNumberOfFrame() {
-        return sliderTime.getMaximum();
-    }
-
-    public int getNumberOfImageForBuffer() {
-        return Integer.parseInt(numberOfImageForBufferTextField.getText());
-    }
-
-    public IcyBufferedImage getImageAt(int time) {
-        return sequenceOut.getImage(time, 0);
-    }
-
     public void deactivateTrackAll() {
         stopTrackAllButton.setEnabled(false);
         trackAllButton.setEnabled(true);
         startThreadStepButton.setEnabled(true);
         readPositionFromROIButton.setEnabled(true);
-    }
-
-    public PhyMouse getPhyMouse() {
-        return phyMouse;
-    }
-
-    public MouseGuidePainter getMouseGuidePainter() {
-        return mouseGuidePainter;
-    }
-
-    public Sequence getSequenceOut() {
-        return sequenceOut;
     }
 
     public ManualHelper getManualHelperA() {
@@ -175,10 +156,6 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
     public ManualHelper getManualHelperB() {
         return manualHelperB;
-    }
-
-    public XugglerAviFile getAviFile() {
-        return aviFile;
     }
 
     //interface PluginImageAnalysis
@@ -244,8 +221,12 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     @Override
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == checkBufferTimer) {
-            System.out.println("buffer timer ring");
-            bufferValue.setText(getCurrentBufferLoadPercent() + " %");
+            if (bufferThread != null) {
+                bufferValue.setText(bufferThread.getCurrentBufferLoadPercent() + " %");
+                if (!bufferThread.isAlive()) {
+                    checkBufferTimer.stop();
+                }
+            }
         }
 
         if (e.getSource() == setVideoSourceButton) {
@@ -282,25 +263,12 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
                 sliderTime.setMaximum((int) aviFile.getTotalNumberOfFrame());
                 sliderTime.setValue(0);
-
-                setVideoSourceButton.setText(fileChooser.getSelectedFile().getName());
+                createOrUpdateImageBuffer();
 
                 currentFile = fileChooser.getSelectedFile();
                 phyMouse.loadXML(currentFile);
 
-                if (bufferThread != null) {
-                    bufferThread.pleaseStop();
-                    try {
-                        bufferThread.join();
-                    } catch (final InterruptedException e1) {
-                        e1.printStackTrace();
-                    }
-                }
-                bufferThread = new ImageBufferThread(this);
-                bufferThread.setName("Buffer Thread");
-                bufferThread.setPriority(Thread.NORM_PRIORITY);
-                bufferThread.start();
-
+                setVideoSourceButton.setText(fileChooser.getSelectedFile().getName());
                 useImageBufferOptimisation.setEnabled(false);
                 numberOfImageForBufferTextField.setEnabled(false);
 
@@ -350,12 +318,12 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
             trackAllButton.setEnabled(false);
             stopThreadStepButton.setEnabled(true);
             readPositionFromROIButton.setEnabled(false);
-            stepThread = new StepThread(this);
+            stepThread = new StepThread(sequenceOut, phyMouse, sliderTime);
             stepThread.start();
         }
 
         if (e.getSource() == stopThreadStepButton) {
-            stepThread.shouldRun = false;
+            stepThread.interrupt(); //TODO: should wait
             startThreadStepButton.setEnabled(true);
             trackAllButton.setEnabled(true);
             stopThreadStepButton.setEnabled(false);
@@ -434,7 +402,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
             if (trackAllThread == null) {
                 startTrackAll();
             } else {
-                if (!trackAllThread.isShouldRun()) {
+                if (!trackAllThread.isAlive()) {
                     startTrackAll();
                 } else {
                     stopTrackAll();
@@ -460,10 +428,12 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     @Override
     public void stateChanged(ChangeEvent e) {
         if (e.getSource() == sliderTime) {
+            createOrUpdateImageBuffer();
+
             Viewer v = Icy.getMainInterface().getFirstViewer(sequenceOut);
 
             if (v != null)
-                v.setT(sliderTime.getValue());
+                v.setPositionT(sliderTime.getValue());
 
             displayImageAt(sliderTime.getValue());
 
@@ -492,13 +462,44 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     //interface ViewerListener
     @Override
     public void viewerChanged(ViewerEvent event) {
-        if ((event.getType() == ViewerEventType.POSITION_CHANGED) && (event.getDim() == DimensionId.T))
+        if ((event.getType() == ViewerEventType.POSITION_CHANGED) && (event.getDim() == DimensionId.T)) {
             sliderTime.setValue(event.getSource().getPositionT());
+            createOrUpdateImageBuffer();
+        }
     }
 
     @Override
     public void viewerClosed(Viewer viewer) {
         // ignore
+    }
+
+    private synchronized int getCurrentFrame() {
+        return sliderTime.getValue();
+    }
+
+    private synchronized int getTotalNumberOfFrame() {
+        return sliderTime.getMaximum();
+    }
+
+    private int getNumberOfImageForBuffer() {
+        return Integer.parseInt(numberOfImageForBufferTextField.getText());
+    }
+
+    private void createOrUpdateImageBuffer() {
+        if (bufferThread != null) {
+            bufferThread.interrupt();
+            try {
+                bufferThread.join();
+            } catch (final InterruptedException e1) {
+                e1.printStackTrace();
+            }
+        }
+        bufferThread = new ImageBufferThread(getCurrentFrame(), getNumberOfImageForBuffer(), getTotalNumberOfFrame(), sequenceOut, aviFile);
+        bufferThread.setName("Buffer Thread");
+        bufferThread.setPriority(Thread.NORM_PRIORITY);
+        bufferThread.start();
+
+        checkBufferTimer.start(); //Listener for display buffer loaded percentage
     }
 
     private JPanel createVideoPanel() {
@@ -521,26 +522,6 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         previous10Frame.addActionListener(this);
         next10Frame.addActionListener(this);
         return videoPanel;
-    }
-
-    private int getCurrentBufferLoadPercent() {
-        int currentBufferPercent;
-        int frameStart = getCurrentFrame() - 10;
-        int frameEnd = getCurrentFrame() + getNumberOfImageForBuffer();
-        float nbImage = 0;
-        float nbImageLoaded = 0;
-
-        for (int t = frameStart; t < frameEnd; t++) {
-            if ((t >= 0) && (t < getTotalNumberOfFrame())) {
-                nbImage++;
-                if (sequenceOut.getImage(t, 0) != null)
-                    nbImageLoaded++;
-            }
-        }
-
-        currentBufferPercent = (int) (nbImageLoaded * 100f / nbImage);
-
-        return currentBufferPercent;
     }
 
     private void readPositionFromROI() {
@@ -608,9 +589,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
                 }
             }
 
-            String timeString = "";
-            timeString += "(#frame): " + frameNumber + "/" + aviFile.getTotalNumberOfFrame() + " " + aviFile.getTimeForFrame(frameNumber);
-
+            String timeString = "(#frame): " + frameNumber + "/" + aviFile.getTotalNumberOfFrame() + " " + aviFile.getTimeForFrame(frameNumber);
             currentTimeLabel.setText(timeString);
         }
     }
@@ -621,7 +600,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
     private void startTrackAll() {
         readPositionFromROI();
-        trackAllThread = new TrackAllThread(this);
+        trackAllThread = new TrackAllThread(this, sequenceOut, phyMouse, mouseGuidePainter, getCurrentFrame(), getTotalNumberOfFrame());
         trackAllThread.start();
         stopTrackAllButton.setEnabled(true);
         trackAllButton.setEnabled(false);
@@ -630,6 +609,6 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     }
 
     private void stopTrackAll() {
-        trackAllThread.stopShouldRun();
+        trackAllThread.interrupt();
     }
 }

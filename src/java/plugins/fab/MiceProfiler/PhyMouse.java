@@ -18,35 +18,23 @@
  */
 package plugins.fab.MiceProfiler;
 
-import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.DataBuffer;
-
 import java.io.File;
-
-import java.util.*;
-
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JSpinner;
-import javax.swing.JTextField;
-import javax.swing.SpinnerNumberModel;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -57,26 +45,15 @@ import javax.xml.xpath.XPathFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import icy.canvas.IcyCanvas;
 import icy.canvas.IcyCanvas2D;
-
 import icy.gui.util.GuiUtil;
-
 import icy.image.IcyBufferedImage;
 import icy.image.IcyBufferedImageUtil;
-
 import icy.main.Icy;
-
-import icy.painter.Painter;
-
-import icy.roi.ROI;
 import icy.roi.ROI2D;
-
 import icy.sequence.Sequence;
-
 import icy.type.DataType;
-
 import net.phys2d.math.ROVector2f;
 import net.phys2d.math.Vector2f;
 import net.phys2d.raw.Body;
@@ -88,7 +65,6 @@ import net.phys2d.raw.shapes.Circle;
 import net.phys2d.raw.shapes.Polygon;
 import net.phys2d.raw.shapes.Shape;
 import net.phys2d.raw.strategies.QuadSpaceStrategy;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -151,11 +127,6 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
     private final MAnchor2D[] headForcedPosition = new MAnchor2D[2];
 
-    private ArrayList<Scale> binaryScaleMap = null;
-
-    private final Map<Integer, MouseView> mouse1view = Maps.newHashMap();
-    private final Map<Integer, MouseView> mouse2view = Maps.newHashMap();
-
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Constructors
     //~ ----------------------------------------------------------------------------------------------------------------
@@ -204,9 +175,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
         ROI2D clipROI = null;
         Sequence activeSequence = Icy.getMainInterface().getFocusedSequence();
         if (activeSequence != null) {
-            for (ROI roi : activeSequence.getROIs()) {
-                clipROI = (ROI2D) roi;
-            }
+            clipROI = (ROI2D) activeSequence.getROIs().get(activeSequence.getROIs().size() - 1);
         }
 
         int imageSourceWidth = imageSource.getWidth();
@@ -1155,39 +1124,6 @@ public class PhyMouse implements ActionListener, ChangeListener {
         }
     }
 
-    public void divideTimePer2() {
-        int max = 0;
-
-        Set<Integer> integerKey = mouseBRecord.keySet();
-        Iterator<Integer> it = integerKey.iterator();
-        while (it.hasNext()) {
-            final Integer t = it.next();
-            if (t > max)
-                max = t;
-        }
-        System.out.println("Max =" + max);
-        for (int i = 0; i <= max; i += 2) {
-            if (mouseARecord.containsKey(i)) {
-                MouseInfoRecord mouseRecordA = mouseARecord.get(i);
-                mouseARecord.remove(i);
-                mouseARecord.put(i / 2, mouseRecordA);
-            }
-
-            if (mouseBRecord.containsKey(i)) {
-                MouseInfoRecord mouseRecordB = mouseBRecord.get(i);
-                mouseBRecord.remove(i);
-                mouseBRecord.put(i / 2, mouseRecordB);
-            }
-        }
-
-        for (int i = max / 2; i <= max; i++) {
-            mouseARecord.remove(i);
-            mouseBRecord.remove(i);
-        }
-
-        System.out.println("Split done.");
-    }
-
     public void setReverseThreshold(boolean reverseThresholdBoolean) {
         this.reverseThresholdBoolean = reverseThresholdBoolean;
     }
@@ -1199,57 +1135,23 @@ public class PhyMouse implements ActionListener, ChangeListener {
         headForcedPosition[mouseNumber] = controlPoint;
     }
 
-    public SlideJoint generateSlideJoint(Body bodyA, Body bodyB, float min, float max) {
+    public void generateSlideJoint(Body bodyA, Body bodyB, float min, float max) {
         SlideJoint slideJoint = new SlideJoint(bodyA, bodyB, new Vector2f(0, 0), new Vector2f(0, 0f), min, max, 0);
         slideJointList.add(slideJoint);
         world.add(slideJoint);
-        return slideJoint;
     }
 
     public void recordMousePosition(int currentFrame) {
-        // record mouse A
-        {
-            Point2D headPosition = new Point2D.Float(mouseList.get(0).getHead().getPosition().getX(), mouseList.get(0).getHead().getPosition().getY());
-            Point2D tailPosition = new Point2D.Float(mouseList.get(0).getTail().getPosition().getX(), mouseList.get(0).getTail().getPosition().getY());
-            Point2D bodyPosition = new Point2D.Float(mouseList.get(0).getTommyBody().getPosition().getX(), mouseList.get(0).getTommyBody().getPosition().getY());
-            Point2D neckPosition = new Point2D.Float(mouseList.get(0).getNeckAttachBody().getPosition().getX(), mouseList.get(0).getNeckAttachBody().getPosition().getY());
-            MouseInfoRecord mouseAInfo = new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
-            mouseARecord.put(currentFrame, mouseAInfo);
-        }
-        // record mouse B
-        if (mouseList.size() > 1) // is there 2 mice ?
-        {
-            Point2D headPosition = new Point2D.Float(mouseList.get(1).getHead().getPosition().getX(), mouseList.get(1).getHead().getPosition().getY());
-            Point2D tailPosition = new Point2D.Float(mouseList.get(1).getTail().getPosition().getX(), mouseList.get(1).getTail().getPosition().getY());
-            Point2D bodyPosition = new Point2D.Float(mouseList.get(1).getTommyBody().getPosition().getX(), mouseList.get(1).getTommyBody().getPosition().getY());
-            Point2D neckPosition = new Point2D.Float(mouseList.get(1).getNeckAttachBody().getPosition().getX(), mouseList.get(1).getNeckAttachBody().getPosition().getY());
-            MouseInfoRecord mouseBInfo = new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
-            mouseBRecord.put(currentFrame, mouseBInfo);
-        }
+        mouseARecord.put(currentFrame, getMouseInfoRecord(0));
+        mouseBRecord.put(currentFrame, getMouseInfoRecord(1));
     }
 
-    private Body copyBody(Body source) {
-        Body target = null;
-        if (source.getShape() instanceof Box) {
-            final Box box = (Box) source.getShape();
-            target = new Body("", new Box(box.getSize().getX(), box.getSize().getY()), source.getMass());
-        }
-
-        if (source.getShape() instanceof Circle) {
-            final Circle circle = (Circle) source.getShape();
-            target = new Body("", new Circle(circle.getRadius()), source.getMass());
-        }
-
-        target.setDamping(source.getDamping());
-        target.setPosition(source.getPosition().getX(), source.getPosition().getY());
-        target.setGravityEffected(false);
-        target.setRotation(source.getRotation());
-        target.adjustVelocity(new Vector2f(source.getVelocity().getX(), source.getVelocity().getY()));
-
-        final EnergyInfo energyInfo = (EnergyInfo) source.getUserData();
-        target.setUserData(energyInfo);
-
-        return target;
+    private MouseInfoRecord getMouseInfoRecord(int i) {
+        Point2D headPosition = new Point2D.Float(mouseList.get(i).getHead().getPosition().getX(), mouseList.get(i).getHead().getPosition().getY());
+        Point2D tailPosition = new Point2D.Float(mouseList.get(i).getTail().getPosition().getX(), mouseList.get(i).getTail().getPosition().getY());
+        Point2D bodyPosition = new Point2D.Float(mouseList.get(i).getTommyBody().getPosition().getX(), mouseList.get(i).getTommyBody().getPosition().getY());
+        Point2D neckPosition = new Point2D.Float(mouseList.get(i).getNeckAttachBody().getPosition().getX(), mouseList.get(i).getNeckAttachBody().getPosition().getY());
+        return new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
     }
 
     /**
@@ -1288,425 +1190,6 @@ public class PhyMouse implements ActionListener, ChangeListener {
                 }
             }
         }
-    }
-
-    private double convertScaleX(double x) {
-        x = x - 150;
-        x *= (35. / 100.);
-        return x;
-    }
-
-    private double convertScaleY(double y) {
-        y = y - 50;
-        y *= (50. / 200.);
-        return y;
-    }
-
-    private void writeXMLResult() {
-        // Should save
-        // head position
-        // tommy position
-        // tail position
-
-        System.out.println();
-        System.out.println("Body Mouse X 1:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse1view.get(i);
-            System.out.print(convertScaleX(mouseView.bodyPosition.getX()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-        System.out.println();
-        System.out.println("Body Mouse Y 1:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse1view.get(i);
-            System.out.print(convertScaleY(mouseView.bodyPosition.getY()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-
-        System.out.println();
-        System.out.println("head Mouse X 1:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse1view.get(i);
-            System.out.print(convertScaleX(mouseView.headPosition.getX()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-        System.out.println();
-        System.out.println("head Mouse Y 1:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse1view.get(i);
-            System.out.print(convertScaleY(mouseView.headPosition.getY()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-
-        System.out.println();
-        System.out.println("Head Mouse Angle 1:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse1view.get(i);
-            System.out.print((int) (180 * mouseView.headAngle / 3.14f) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-
-        // souris 2
-        System.out.println();
-        System.out.println("Body Mouse X 2:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse2view.get(i);
-            System.out.print(convertScaleX(mouseView.bodyPosition.getX()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-        System.out.println();
-        System.out.println("Body Mouse Y 2:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse2view.get(i);
-            System.out.print(convertScaleY(mouseView.bodyPosition.getY()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-
-        System.out.println();
-        System.out.println("head Mouse X 1:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse2view.get(i);
-            System.out.print(convertScaleX(mouseView.headPosition.getX()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-        System.out.println();
-        System.out.println("head Mouse Y 1:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse2view.get(i);
-            System.out.print(convertScaleY(mouseView.headPosition.getY()) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-
-        System.out.println();
-        System.out.println("Head Mouse Angle 2:");
-        for (int i = 0; i < sequence.getLength(); i++) {
-            MouseView mouseView = mouse2view.get(i);
-            System.out.print((int) (180 * mouseView.headAngle / 3.14f) + ", ");
-            if ((i % 10) == 0)
-                System.out.println();
-        }
-
-    }
-
-    private void computeATestAnchorVectorMap(boolean DISPLAY, Ancre2 ancre) {
-        Sequence sequenceFocused = Icy.getMainInterface().getFocusedSequence();
-
-        // creation d'une ancre avec sa carte
-        Ancre2 a1 = ancre;
-
-        if (DISPLAY) {
-            a1.displayAsSequence();
-            sequenceFocused.addPainter(a1);
-        }
-
-        // calcul du vecteur moyen avec methode lente et basique
-        {
-            int count = 0;
-            float vx = 0;
-            float vy = 0;
-            final byte[] dataAncre = a1.carteAncre.getDataXYAsByte(0);
-            final byte[] dataCarte = sequenceFocused.getDataXYAsByte(0, 0, 0);
-
-            for (int x = a1.minX; x < a1.maxX; x++) {
-                for (int y = a1.minY; y < a1.maxY; y++) {
-                    if (dataAncre[x + (y * a1.mapWidth)] != 0) {
-                        float vectX = (x - a1.centerX) * (dataCarte[x + (y * a1.mapWidth)] & 0xFF);
-                        float vectY = (y - a1.centerY) * (dataCarte[x + (y * a1.mapWidth)] & 0xFF);
-                        vx += vectX;
-                        vy += vectY;
-                        count++;
-                    }
-                }
-            }
-
-            System.out.println("nb iteration simple : " + count);
-            System.out.println("Calcul du vecteur via methode simple : vx = " + vx + " vy = " + vy);
-        }
-
-        // calcul du vecteur moyen avec methode scale et quadtrees
-        {
-            // Iteration sur les echelles ( plus grande vers + petite )
-            float vx = 0;
-            float vy = 0;
-            int count = 0;
-
-            for (int scaleNumber = binaryScaleMap.size() - 1; scaleNumber >= 0; scaleNumber--) {
-                // System.out.println("scale : " + scaleNumber);
-                // rajouter le clipping sur le parcours des map d'attraction en
-                // echelle sur la ROI.
-
-                Scale currentScale = binaryScaleMap.get(scaleNumber);
-                int scaleWidth = currentScale.width;
-                int scaleHeight = currentScale.height;
-                int scaleMulti = (int) currentScale.getScaleFactor();
-                byte[] dataAncre = a1.carteAncre.getDataXYAsByte(0);
-                int widthDataAncre = a1.carteAncre.getWidth();
-
-                for (int x = 0; x < scaleWidth; x++) {
-                    for (int y = 0; y < scaleHeight; y++) {
-                        // first point to test:
-                        int p1x = x * scaleMulti;
-                        int p1y = y * scaleMulti;
-                        // second point to test:
-                        int p2x = ((x + 1) * scaleMulti) - 1;
-                        int p2y = ((y + 1) * scaleMulti) - 1;
-
-                        // test d'inclusion de l'echelle
-                        if ((dataAncre[p1x + (p1y * widthDataAncre)] != 0) // haut gauche
-                            && (dataAncre[p2x + (p2y * widthDataAncre)] != 0) // bas droite
-                            && (dataAncre[p1x + (p2y * widthDataAncre)] != 0) && (dataAncre[p2x + (p1y * widthDataAncre)] != 0)) {
-                            // add a quad to watch
-                            // System.out.print("x");
-                            a1.listRect.add(new Rectangle2D.Float(p1x, p1y, p2x - p1x + 1, p2y - p1y + 1));
-
-                            // remove pixels from anchor
-                            for (int xx = p1x; xx <= p2x; xx++) {
-                                for (int yy = p1y; yy <= p2y; yy++) {
-                                    dataAncre[xx + (yy * widthDataAncre)] = 0; // 0
-                                }
-                            }
-
-                            // calcul du vecteur
-                            final float vectX = (currentScale.barycenterX[x + (y * scaleWidth)] - a1.centerX) * currentScale.value[x + (y * scaleWidth)];
-                            final float vectY = (currentScale.barycenterY[x + (y * scaleWidth)] - a1.centerY) * currentScale.value[x + (y * scaleWidth)];
-                            vx += vectX;
-                            vy += vectY;
-
-                            count++;
-                        }
-                    }
-                }
-
-                if (DISPLAY) {
-                    a1.refreshDisplay();
-                }
-
-            }
-            System.out.println("nb iteration quad : " + count);
-            System.out.println("Calcul du vecteur via methode quad : vx = " + vx + " vy = " + vy);
-        }
-    }
-
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Nested Classes
-    //~ ----------------------------------------------------------------------------------------------------------------
-
-    private class MouseView {
-        private final Point2D headPosition;
-
-        private final Point2D bodyPosition;
-
-        private final float headAngle;
-
-        public MouseView(Point2D headPosition, Point2D bodyPosition, float headAngle) {
-            this.headPosition = headPosition;
-            this.bodyPosition = bodyPosition;
-            this.headAngle = headAngle;
-        }
-
-    }
-
-    private class Scale implements Painter {
-        private final int height;
-        private final int width;
-        private final float[] value;
-        private final float[] barycenterX;
-        private final float[] barycenterY;
-        private final int scale;
-
-        public Scale(int width, int height, int scale) {
-            this.scale = scale;
-            this.width = width;
-            this.height = height;
-            value = new float[width * height];
-            barycenterX = new float[width * height];
-            barycenterY = new float[width * height];
-        }
-
-        @Override
-        public void keyPressed(KeyEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mouseClick(MouseEvent e, Point2D p, IcyCanvas canvas) {
-            final int x = (int) p.getX();
-            final int y = (int) p.getY();
-            System.out.println("Point : x:" + x + " y:" + y + " bx:" + barycenterX[x + (y * width)] + " by:" + barycenterY[x + (y * width)] + " v:" + value[x + (y * width)]);
-        }
-
-        @Override
-        public void mouseDrag(MouseEvent e, Point2D p, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mouseMove(MouseEvent e, Point2D p, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void paint(Graphics2D g, Sequence sequence, IcyCanvas canvas) {
-            g.setStroke(new BasicStroke(0.1f));
-            Line2D line = new Line2D.Float();
-            g.setColor(Color.red);
-
-            float scaleDivider = getScaleFactor();
-
-            for (int x = 0; x < width; x += 1) {
-                for (int y = 0; y < height; y += 1) {
-                    float xx = barycenterX[x + (y * width)] / scaleDivider;
-                    float yy = barycenterY[x + (y * width)] / scaleDivider;
-
-                    if (value[x + (y * width)] != 0) {
-                        g.setColor(Color.yellow);
-                        line.setLine(0.5 + x + 0.25, 0.5 + y + 0.25, 0.5 + x - 0.25, 0.5 + y - 0.25);
-                        g.draw(line);
-                        line.setLine(0.5 + x + 0.25, 0.5 + y - 0.25, 0.5 + x - 0.25, 0.5 + y + 0.25);
-                        g.draw(line);
-
-                        g.setColor(Color.red);
-
-                        line.setLine(0.5 + x, 0.5 + y, xx + 0.25, yy + 0.25);
-                        g.draw(line);
-                    }
-                }
-            }
-        }
-
-        @Override
-        public void keyReleased(KeyEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mousePressed(MouseEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mouseReleased(MouseEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
-        float getScaleFactor() {
-            float scaleFactor = 1;
-            for (int i = 0; i < scale; i++) {
-                scaleFactor *= 2;
-            }
-
-            return scaleFactor;
-        }
-
-        void sendToDisplay() {
-            IcyBufferedImage image = new IcyBufferedImage(width, height, 1, DataBuffer.TYPE_FLOAT);
-            float[] data = image.getDataXYAsFloat(0);
-
-            for (int i = 0; i < value.length; i++) {
-                data[i] = value[i];
-            }
-
-            Sequence sequence = new Sequence(image);
-            sequence.setName("Scale " + scale + " resol div par " + getScaleFactor());
-            sequence.addPainter(this);
-            Icy.addSequence(sequence);
-        }
-    }
-
-    private class Ancre2 implements Painter {
-        private final int mapWidth;
-        private final int mapHeight;
-        private final float centerX;
-        private final float centerY;
-        private final float ray;
-        private final IcyBufferedImage carteAncre;
-        private final int minX;
-        private final int maxX;
-        private final int minY;
-        private final int maxY;
-        private final List<Rectangle2D> listRect = new ArrayList<Rectangle2D>();
-
-        private Sequence sequence;
-
-        public Ancre2(int mapWidth, int mapHeight, float centerX, float centerY, float ray) {
-            this.mapWidth = mapWidth;
-            this.mapHeight = mapHeight;
-            this.centerX = centerX;
-            this.centerY = centerY;
-            this.ray = ray;
-
-            minX = (int) (centerX - ray);
-            maxX = (int) (centerX + ray);
-            minY = (int) (centerY - ray);
-            maxY = (int) (centerY + ray);
-
-            carteAncre = new IcyBufferedImage(mapWidth, mapHeight, 1, DataBuffer.TYPE_BYTE);
-
-            // construction de la carte encre.
-            byte[] data = carteAncre.getDataXYAsByte(0);
-
-            for (int x = minX; x < maxX; x++) {
-                for (int y = minY; y < maxY; y++) {
-                    float dis = ((x - centerX) * (x - centerX)) + ((y - centerY) * (y - centerY));
-                    if (dis < (ray * ray)) {
-                        data[x + (y * mapWidth)] = (byte) 255;
-                    }
-                }
-            }
-        }
-
-        public void displayAsSequence() {
-            sequence = new Sequence(carteAncre);
-            sequence.setName("Map Ancre");
-            sequence.addPainter(this);
-            Icy.addSequence(sequence);
-        }
-
-        public void refreshDisplay() {
-            sequence.painterChanged(null);
-        }
-
-        @Override
-        public void keyPressed(KeyEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mouseClick(MouseEvent e, Point2D p, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mouseDrag(MouseEvent e, Point2D p, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mouseMove(MouseEvent e, Point2D p, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void paint(Graphics2D g, Sequence sequence, IcyCanvas canvas) {
-            g.setStroke(new BasicStroke(1f));
-
-            g.setColor(new Color((float) Math.random(), (float) Math.random(), (float) Math.random(), (float) 0.5f));
-            for (final Rectangle2D rect : listRect) {
-                g.draw(rect);
-            }
-        }
-
-        @Override
-        public void keyReleased(KeyEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mousePressed(MouseEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
-        @Override
-        public void mouseReleased(MouseEvent e, Point2D imagePoint, IcyCanvas canvas) {
-        }
-
     }
 
 }

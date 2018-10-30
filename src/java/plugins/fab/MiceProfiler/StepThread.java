@@ -1,6 +1,10 @@
 package plugins.fab.MiceProfiler;
 
+import javax.swing.*;
+
 import icy.image.IcyBufferedImage;
+
+import icy.sequence.Sequence;
 
 
 class StepThread extends Thread {
@@ -9,17 +13,18 @@ class StepThread extends Thread {
     //~ Instance fields
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    private final MiceProfilerTracker miceProfilerTracker;
+    private final Sequence sequence;
     private final PhyMouse phyMouse;
-    boolean shouldRun = true;
+    private final JSlider sliderTime;
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Constructors
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    public StepThread(MiceProfilerTracker miceProfilerTracker) {
-        this.miceProfilerTracker = miceProfilerTracker;
-        this.phyMouse = miceProfilerTracker.getPhyMouse();
+    public StepThread(Sequence sequence, PhyMouse phyMouse, JSlider sliderTime) {
+        this.sequence = sequence;
+        this.phyMouse = phyMouse;
+        this.sliderTime = sliderTime;
     }
 
     //~ ----------------------------------------------------------------------------------------------------------------
@@ -28,21 +33,31 @@ class StepThread extends Thread {
 
     @Override
     public void run() {
-        while (shouldRun) {
-            IcyBufferedImage imageSourceR = null;
-            while (imageSourceR == null) {
-                imageSourceR = miceProfilerTracker.getImageAt(miceProfilerTracker.getCurrentFrame());
-            }
+        while (true) {
+            IcyBufferedImage imageSource = sequence.getImage(sliderTime.getValue(), 0);
+            //Wait for ImageBufferThread to load data
+            while (imageSource == null) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
 
-            IcyBufferedImage imageSource = imageSourceR; // assume good format.
+                // test arret
+                if (isInterrupted()) {
+                    return;
+                }
+
+                imageSource = sequence.getImage(sliderTime.getValue(), 0);
+            }
 
             synchronized (phyMouse) {
                 phyMouse.computeForcesMap(imageSource);
                 phyMouse.computeForces();
-                phyMouse.worldStep(miceProfilerTracker.getCurrentFrame());
+                phyMouse.worldStep(sliderTime.getValue());
             }
 
-            miceProfilerTracker.getSequenceOut().painterChanged(null);
+            sequence.painterChanged(null);
         }
     }
 }

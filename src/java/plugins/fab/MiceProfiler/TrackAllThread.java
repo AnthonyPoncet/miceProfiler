@@ -4,6 +4,8 @@ import java.util.Calendar;
 
 import icy.image.IcyBufferedImage;
 
+import icy.sequence.Sequence;
+
 import icy.system.thread.ThreadUtil;
 
 
@@ -20,19 +22,25 @@ class TrackAllThread extends Thread {
     //~ ----------------------------------------------------------------------------------------------------------------
 
     private final MiceProfilerTracker miceProfilerTracker;
+    private final Sequence sequence;
     private final PhyMouse phyMouse;
     private final MouseGuidePainter mouseGuidePainter;
-    private boolean shouldRun;
+
+    private final int startingFrame;
+    private final int totalNumberOfImage;
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Constructors
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    public TrackAllThread(MiceProfilerTracker miceProfilerTracker) {
+    public TrackAllThread(MiceProfilerTracker miceProfilerTracker, Sequence sequence, PhyMouse phyMouse, MouseGuidePainter mouseGuidePainter, int startingFrame, int totalNumberOfImage) {
         this.miceProfilerTracker = miceProfilerTracker;
-        this.phyMouse = miceProfilerTracker.getPhyMouse();
-        this.mouseGuidePainter = miceProfilerTracker.getMouseGuidePainter();
-        this.shouldRun = true;
+        this.sequence = sequence;
+        this.phyMouse = phyMouse;
+        this.mouseGuidePainter = mouseGuidePainter;
+
+        this.startingFrame = startingFrame;
+        this.totalNumberOfImage = totalNumberOfImage;
     }
 
     //~ ----------------------------------------------------------------------------------------------------------------
@@ -41,21 +49,19 @@ class TrackAllThread extends Thread {
 
     @Override
     public void run() {
-        for (int t = miceProfilerTracker.getCurrentFrame(); t < miceProfilerTracker.getTotalNumberOfFrame(); t++) {
+        for (int t = startingFrame; t < totalNumberOfImage; t++) {
             double totalImageTimerStart = Calendar.getInstance().getTimeInMillis();
 
-            if (!shouldRun) {
+            if (isInterrupted()) {
                 ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
                 return;
             }
 
             miceProfilerTracker.setSliderTimeValue(t); // image should be updated in viewer here.
 
-            IcyBufferedImage imageSourceR = miceProfilerTracker.getImageAt(t);
-
-            while (imageSourceR == null) {
-                imageSourceR = miceProfilerTracker.getImageAt(t);
-
+            IcyBufferedImage imageSource = sequence.getImage(t, 0);
+            //Wait for bufferization from ImageBufferThread
+            while (imageSource == null) {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
@@ -63,18 +69,17 @@ class TrackAllThread extends Thread {
                 }
 
                 // test arret
-                if (!shouldRun) {
-                    miceProfilerTracker.deactivateTrackAll();
+                if (isInterrupted()) {
+                    ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
                     return;
                 }
+
+                imageSource = sequence.getImage(t, 0);
             }
 
-            // Convert input image.
-            IcyBufferedImage imageSource = imageSourceR;
-
             // use the record to initialize the head position of the mouse.
-            phyMouse.setHeadLocation(0, miceProfilerTracker.getManualHelperA().getControlPoint(miceProfilerTracker.getCurrentFrame()));
-            phyMouse.setHeadLocation(1, miceProfilerTracker.getManualHelperB().getControlPoint(miceProfilerTracker.getCurrentFrame()));
+            phyMouse.setHeadLocation(0, miceProfilerTracker.getManualHelperA().getControlPoint(t));
+            phyMouse.setHeadLocation(1, miceProfilerTracker.getManualHelperB().getControlPoint(t));
             phyMouse.computeForcesMap(imageSource);
 
             for (int i = 0; i < ITERATION; i++) {
@@ -100,14 +105,6 @@ class TrackAllThread extends Thread {
         // System.out.print("Ok.");
 
         miceProfilerTracker.deactivateTrackAll();
-    }
-
-    public boolean isShouldRun() {
-        return shouldRun;
-    }
-
-    public void stopShouldRun() {
-        shouldRun = false;
     }
 
     private void updateMouseGuidePainter() {

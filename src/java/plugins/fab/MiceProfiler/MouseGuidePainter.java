@@ -27,9 +27,8 @@ import java.awt.geom.Line2D;
 import icy.canvas.IcyCanvas;
 
 import icy.painter.Anchor2D;
-import icy.painter.Anchor2D.Anchor2DListener;
+import icy.painter.Anchor2D.Anchor2DPositionListener;
 import icy.painter.Overlay;
-import icy.painter.PainterEvent;
 
 import icy.sequence.Sequence;
 
@@ -41,7 +40,7 @@ import icy.type.point.Point5D;
  *
  * @author Fabrice de Chaumont
  */
-public class MouseGuidePainter extends Overlay implements Anchor2D.Anchor2DPositionListener {
+public class MouseGuidePainter extends Overlay implements Anchor2DPositionListener {
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Instance fields
