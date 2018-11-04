@@ -1,3 +1,9 @@
+/**
+ *  Copyright Murex S.A.S., 2003-2018. All Rights Reserved.
+ *
+ *  This software program is proprietary and confidential to Murex S.A.S and its affiliates ("Murex") and, without limiting the generality of the foregoing reservation of rights, shall not be accessed, used, reproduced or distributed without the
+ *  express prior written consent of Murex and subject to the applicable Murex licensing terms. Any modification or removal of this copyright notice is expressly prohibited.
+ */
 /*
  * Copyright 2011, 2012 Institut Pasteur.
  *
@@ -27,14 +33,18 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.DataBuffer;
+
 import java.io.File;
+
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -45,15 +55,23 @@ import javax.xml.xpath.XPathFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
 import icy.canvas.IcyCanvas;
 import icy.canvas.IcyCanvas2D;
+
 import icy.gui.util.GuiUtil;
+
 import icy.image.IcyBufferedImage;
 import icy.image.IcyBufferedImageUtil;
+
 import icy.main.Icy;
+
 import icy.roi.ROI2D;
+
 import icy.sequence.Sequence;
+
 import icy.type.DataType;
+
 import net.phys2d.math.ROVector2f;
 import net.phys2d.math.Vector2f;
 import net.phys2d.raw.Body;
@@ -65,6 +83,7 @@ import net.phys2d.raw.shapes.Circle;
 import net.phys2d.raw.shapes.Polygon;
 import net.phys2d.raw.shapes.Shape;
 import net.phys2d.raw.strategies.QuadSpaceStrategy;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -109,22 +128,27 @@ public class PhyMouse implements ActionListener, ChangeListener {
     private float mouseScaleModel = 0.22f;
     private final JTextField scaleTextField = new JTextField(Float.toString(mouseScaleModel));
 
+    //Maps for ?
     private IcyBufferedImage binaryMap;
     private IcyBufferedImage edgeMap;
 
+    //Physics for ?
     private final List<Body> bodyList = Lists.newArrayList();
     private final List<SlideJoint> slideJointList = Lists.newArrayList();
     private final List<DistanceJoint> distanceJointList = Lists.newArrayList();
 
+    //Mouse detail
     private final List<Mouse> mouseList = Lists.newArrayList();
-    private final Map<Integer, MouseInfoRecord> mouseARecord = Maps.newHashMap();
-    private final Map<Integer, MouseInfoRecord> mouseBRecord = Maps.newHashMap();
+    private final Map<Integer, MouseInfoRecord> mouse1Records = Maps.newHashMap();
+    private final Map<Integer, MouseInfoRecord> mouse2Records = Maps.newHashMap();
 
     /** used by painter */
     private boolean motion_prediction_state = false;
 
+    //??
     private boolean reverseThresholdBoolean = false;
 
+    //??
     private final MAnchor2D[] headForcedPosition = new MAnchor2D[2];
 
     //~ ----------------------------------------------------------------------------------------------------------------
@@ -137,28 +161,8 @@ public class PhyMouse implements ActionListener, ChangeListener {
         this.world.clear();
         this.world.setGravity(0, 0);
 
-        //Create Panel for Mice Profiler window
         this.panel = GuiUtil.generatePanel();
-        this.panel.add(GuiUtil.besidesPanel(displayBinaryMapCheckBox, displayGradientMapCheckBox));
-        this.panel.add(GuiUtil.besidesPanel(displayForceCheckBox, displayEnergyAreaCheckBox));
-        this.panel.add(GuiUtil.besidesPanel(displayBodyCenterCheckBox, displayBodyShapeCheckBox));
-        this.panel.add(GuiUtil.besidesPanel(displayGlobalSplineCheckBox, displaySlideJointCheckBox));
-        this.panel.add(GuiUtil.besidesPanel(displayDistanceJointCheckBox, displayMemoryCheckBox));
-        this.panel.add(GuiUtil.besidesPanel(useMotionPredictionCheckBox));
-        this.panel.add(GuiUtil.besidesPanel(new JLabel("Binary Threshold:"), binaryThresholdSpinner));
-        JLabel mouseModelScaleLabel = new JLabel("Mouse Model Scale:");
-        mouseModelScaleLabel.setToolTipText("Scale of the model.");
-        this.panel.add(GuiUtil.besidesPanel(mouseModelScaleLabel, scaleTextField)); // applyNewScaleButton
-        this.displayBinaryMapCheckBox.addActionListener(this);
-        this.displayGradientMapCheckBox.addActionListener(this);
-        this.displayForceCheckBox.addActionListener(this);
-        this.displayEnergyAreaCheckBox.addActionListener(this);
-        this.displayBodyCenterCheckBox.addActionListener(this);
-        this.displayBodyShapeCheckBox.addActionListener(this);
-        this.displayGlobalSplineCheckBox.addActionListener(this);
-        this.displaySlideJointCheckBox.addActionListener(this);
-        this.displayDistanceJointCheckBox.addActionListener(this);
-        this.binaryThresholdSpinner.addChangeListener(this);
+        fillWindowPanel();
     }
 
     //~ ----------------------------------------------------------------------------------------------------------------
@@ -171,62 +175,54 @@ public class PhyMouse implements ActionListener, ChangeListener {
     }
 
     public void computeForcesMap(IcyBufferedImage imageSource) {
-        //System.out.println( "refresh boolean: " + reverseThresholdBoolean );
+        //Retrieve ROI if added (get last one, but only one expected)
         ROI2D clipROI = null;
         Sequence activeSequence = Icy.getMainInterface().getFocusedSequence();
         if (activeSequence != null) {
-            clipROI = (ROI2D) activeSequence.getROIs().get(activeSequence.getROIs().size() - 1);
+            if (!activeSequence.getROIs().isEmpty())
+                clipROI = (ROI2D) activeSequence.getROIs().get(activeSequence.getROIs().size() - 1);
         }
 
+        //Create or update binaryMap
         int imageSourceWidth = imageSource.getWidth();
         int imageSourceHeight = imageSource.getHeight();
-
         if (binaryMap == null) {
             binaryMap = new IcyBufferedImage(imageSourceWidth, imageSourceHeight, 1, DataType.UBYTE);
-        }
-        if ((binaryMap.getWidth() != imageSourceWidth) || (binaryMap.getHeight() != imageSourceHeight)) {
+        } else if ((binaryMap.getWidth() != imageSourceWidth) || (binaryMap.getHeight() != imageSourceHeight)) {
             binaryMap = new IcyBufferedImage(imageSourceWidth, imageSourceHeight, 1, DataType.UBYTE);
         }
 
+        //Apply Threshold to data (only inside ROI if provided). Take into account reverseThresholdBoolean
         byte[] binaryMapDataBuffer = binaryMap.getDataXYAsByte(0);
         byte[] imageSourceDataBuffer = imageSource.getDataXYAsByte(1);
-
         for (int x = 0; x < imageSourceWidth; x++) {
             for (int y = 0; y < imageSourceHeight; y++) {
                 int val = imageSourceDataBuffer[x + (y * imageSourceWidth)] & 0xFF;
 
-                if (val < thresholdBinaryMap)
-                    val = 255;
-                else
-                    val = 0;
-
-                if (reverseThresholdBoolean) {
-                    if (val == 255) {
-                        val = 0;
-                    } else {
-                        val = 255;
-                    }
-                }
-
                 if (clipROI != null) {
                     if (!clipROI.contains(x, y))
                         val = 0;
+                } else {
+                    if (val < thresholdBinaryMap)
+                        val = (!reverseThresholdBoolean) ? 255 : 0;
+                    else
+                        val = (!reverseThresholdBoolean) ? 0 : 255;
                 }
 
                 binaryMapDataBuffer[x + (y * imageSourceWidth)] = (byte) val;
             }
         }
 
-        // compute Edge Object EnergyMap
+        //Create or update edgeMap
         if (edgeMap == null) {
+            edgeMap = new IcyBufferedImage(imageSourceWidth, imageSourceHeight, 1, DataType.UBYTE);
+        } else if ((edgeMap.getWidth() != imageSourceWidth) || (edgeMap.getHeight() != imageSourceHeight)) {
             edgeMap = new IcyBufferedImage(imageSourceWidth, imageSourceHeight, 1, DataType.UBYTE);
         }
 
         int maxWidth = binaryMap.getWidth() - 1;
         int maxHeight = binaryMap.getHeight() - 1;
-
         byte[] edgeMapDataBuffer = edgeMap.getDataXYAsByte(0);
-
         for (int x = 1; x < maxWidth; x++) {
             for (int y = 1; y < maxHeight; y++) {
                 int val1 = binaryMapDataBuffer[x + (y * imageSourceWidth)] & 0xFF;
@@ -236,7 +232,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
                 int val = Math.abs(val1 - val2) + Math.abs(val1 - val4);
 
-                if (val > SEUIL_EDGE_MAP) // avant 32 // avant 16 encore
+                if (val > SEUIL_EDGE_MAP)
                     val = 255;
                 else
                     val = 0;
@@ -258,12 +254,12 @@ public class PhyMouse implements ActionListener, ChangeListener {
         return mouseList;
     }
 
-    public Map<Integer, MouseInfoRecord> getMouseARecord() {
-        return mouseARecord;
+    public Map<Integer, MouseInfoRecord> getMouse1Records() {
+        return mouse1Records;
     }
 
-    public Map<Integer, MouseInfoRecord> getMouseBRecord() {
-        return mouseBRecord;
+    public Map<Integer, MouseInfoRecord> getMouse2Records() {
+        return mouse2Records;
     }
 
     public void computeForces() {
@@ -277,8 +273,8 @@ public class PhyMouse implements ActionListener, ChangeListener {
             mouseList.get(1).getHead().setPosition((float) pos.getX(), (float) pos.getY());
         }
 
-        // compute forces
-        IcyBufferedImage maskMap = new IcyBufferedImage(binaryMap.getWidth(), binaryMap.getHeight(), 1, DataBuffer.TYPE_BYTE);
+        // Create mask
+        IcyBufferedImage maskMap = new IcyBufferedImage(binaryMap.getWidth(), binaryMap.getHeight(), 1, DataType.UBYTE);
         byte[] maskMapData = maskMap.getDataXYAsByte(0);
         int maskMapWidth = maskMap.getWidth();
 
@@ -293,17 +289,17 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
             drawCircleInMaskMap((int) body.getLastPosition().getX(), (int) body.getLastPosition().getY(), (int) energyInfo.getRay(), maskMap, true);
 
-            for (final Body body2 : bodyList) {
-                if (body != body2) {
-                    EnergyInfo energyInfo2 = (EnergyInfo) body2.getUserData();
-                    if (energyInfo.getEnergyMap() == energyInfo2.getEnergyMap()) {
-                        /*TODO: if (energyInfo2.excludeFromAttractiveMapOwner) {
-                         *  drawCircleInMaskMap((int) body2.getLastPosition().getX(), (int)
-                         * body2.getLastPosition().getY(), (int) energyInfo2.getRay(), maskMap, false);
-                         *}*/
-                    }
-                }
-            }
+            /*for (final Body body2 : bodyList) {
+             *  if (body != body2) {
+             *      EnergyInfo energyInfo2 = (EnergyInfo) body2.getUserData();
+             *      if (energyInfo.getEnergyMap() == energyInfo2.getEnergyMap()) {
+             *          /*TODO: if (energyInfo2.excludeFromAttractiveMapOwner) {
+             *  drawCircleInMaskMap((int) body2.getLastPosition().getX(), (int)
+             * body2.getLastPosition().getY(), (int) energyInfo2.getRay(), maskMap, false);
+             *}
+             *      }
+             *  }
+             *}*/
 
             if (energyInfo.getEnergyMap() == EnergyMap.BINARY_MOUSE) {
                 float vx = 0;
@@ -355,9 +351,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
                 energyInfo.vx = vy;
 
                 body.setForce(vx, vy);
-            }
-
-            if (energyInfo.getEnergyMap() == EnergyMap.GRADIENT_MAP) {
+            } else if (energyInfo.getEnergyMap() == EnergyMap.GRADIENT_MAP) {
                 float vx = 0;
                 float vy = 0;
                 float count = 0;
@@ -416,22 +410,22 @@ public class PhyMouse implements ActionListener, ChangeListener {
     public void swapIdentityRecordFromTToTheEnd(int time) {
         // look for maximum time recorded
         int maxT = 0;
-        for (int i : mouseARecord.keySet()) {
+        for (int i : mouse1Records.keySet()) {
             if (i > maxT)
                 maxT = i;
         }
-        for (int i : mouseBRecord.keySet()) {
+        for (int i : mouse2Records.keySet()) {
             if (i > maxT)
                 maxT = i;
         }
 
         // swap data
         for (int t = time; t <= maxT; t++) {
-            MouseInfoRecord recA = mouseARecord.get(t);
-            MouseInfoRecord recB = mouseBRecord.get(t);
+            MouseInfoRecord recA = mouse1Records.get(t);
+            MouseInfoRecord recB = mouse2Records.get(t);
 
-            mouseARecord.put(t, recB);
-            mouseBRecord.put(t, recA);
+            mouse1Records.put(t, recB);
+            mouse2Records.put(t, recA);
         }
 
     }
@@ -658,7 +652,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
         int currentFrame = 0;
         if (displayMemoryCheckBox.isSelected()) {
             // Mouse A
-            MouseInfoRecord mouseAInfo = mouseARecord.get(currentFrame);
+            MouseInfoRecord mouseAInfo = mouse1Records.get(currentFrame);
             if (mouseAInfo != null) {
                 g2.setColor(Color.RED);
 
@@ -676,7 +670,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
             }
 
             // Mouse B
-            MouseInfoRecord mouseBInfo = mouseBRecord.get(currentFrame);
+            MouseInfoRecord mouseBInfo = mouse2Records.get(currentFrame);
             if (mouseBInfo != null) {
                 g2.setColor(Color.GREEN);
 
@@ -941,12 +935,14 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
     public void loadXML(File currentFile) {
         // LOAD DOCUMENT
-        mouseARecord.clear();
-        mouseBRecord.clear();
+        mouse1Records.clear();
+        mouse2Records.clear();
 
         File XMLFile = new File(currentFile.getAbsoluteFile() + ".xml");
-        if (!XMLFile.exists())
+        if (!XMLFile.exists()) {
+            System.out.println("No XML linked to video provided.s");
             return;
+        }
 
         Document XMLDocument = XMLTools.loadDocument(XMLFile);
 
@@ -977,7 +973,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
                     Point2D neckPosition = new Point2D.Float(neckX, neckY);
                     MouseInfoRecord mouseInfoRecord = new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
 
-                    mouseARecord.put(Integer.parseInt(detNode.getAttribute("t")), mouseInfoRecord);
+                    mouse1Records.put(Integer.parseInt(detNode.getAttribute("t")), mouseInfoRecord);
 
                 }
             } catch (final XPathExpressionException e) {
@@ -1012,7 +1008,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
                     Point2D neckPosition = new Point2D.Float(neckX, neckY);
                     MouseInfoRecord mouseInfoRecord = new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
 
-                    mouseBRecord.put(Integer.parseInt(detNode.getAttribute("t")), mouseInfoRecord);
+                    mouse2Records.put(Integer.parseInt(detNode.getAttribute("t")), mouseInfoRecord);
                 }
             } catch (final XPathExpressionException e) {
                 e.printStackTrace();
@@ -1053,7 +1049,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
         // FILL DATA
         int maxT = 0;
         {
-            Set<Integer> integerKey = mouseARecord.keySet();
+            Set<Integer> integerKey = mouse1Records.keySet();
             Iterator<Integer> it = integerKey.iterator();
             while (it.hasNext()) {
                 Integer t = it.next();
@@ -1064,7 +1060,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
         // MOUSE A
         for (int t = 0; t <= maxT; t++) {
-            MouseInfoRecord mouseAInfo = mouseARecord.get(t);
+            MouseInfoRecord mouseAInfo = mouse1Records.get(t);
             if (mouseAInfo == null)
                 continue;
 
@@ -1090,7 +1086,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
         if (mouseList.size() > 1) { // check if two mice are presents
             for (int t = 0; t <= maxT; t++) {
-                MouseInfoRecord mouseBInfo = mouseBRecord.get(t);
+                MouseInfoRecord mouseBInfo = mouse2Records.get(t);
                 if (mouseBInfo == null)
                     continue;
 
@@ -1142,8 +1138,31 @@ public class PhyMouse implements ActionListener, ChangeListener {
     }
 
     public void recordMousePosition(int currentFrame) {
-        mouseARecord.put(currentFrame, getMouseInfoRecord(0));
-        mouseBRecord.put(currentFrame, getMouseInfoRecord(1));
+        mouse1Records.put(currentFrame, getMouseInfoRecord(0));
+        mouse2Records.put(currentFrame, getMouseInfoRecord(1));
+    }
+
+    private void fillWindowPanel() {
+        this.panel.add(GuiUtil.besidesPanel(displayBinaryMapCheckBox, displayGradientMapCheckBox));
+        this.panel.add(GuiUtil.besidesPanel(displayForceCheckBox, displayEnergyAreaCheckBox));
+        this.panel.add(GuiUtil.besidesPanel(displayBodyCenterCheckBox, displayBodyShapeCheckBox));
+        this.panel.add(GuiUtil.besidesPanel(displayGlobalSplineCheckBox, displaySlideJointCheckBox));
+        this.panel.add(GuiUtil.besidesPanel(displayDistanceJointCheckBox, displayMemoryCheckBox));
+        this.panel.add(GuiUtil.besidesPanel(useMotionPredictionCheckBox));
+        this.panel.add(GuiUtil.besidesPanel(new JLabel("Binary Threshold:"), binaryThresholdSpinner));
+        JLabel mouseModelScaleLabel = new JLabel("Mouse Model Scale:");
+        mouseModelScaleLabel.setToolTipText("Scale of the model.");
+        this.panel.add(GuiUtil.besidesPanel(mouseModelScaleLabel, scaleTextField)); // applyNewScaleButton
+        this.displayBinaryMapCheckBox.addActionListener(this);
+        this.displayGradientMapCheckBox.addActionListener(this);
+        this.displayForceCheckBox.addActionListener(this);
+        this.displayEnergyAreaCheckBox.addActionListener(this);
+        this.displayBodyCenterCheckBox.addActionListener(this);
+        this.displayBodyShapeCheckBox.addActionListener(this);
+        this.displayGlobalSplineCheckBox.addActionListener(this);
+        this.displaySlideJointCheckBox.addActionListener(this);
+        this.displayDistanceJointCheckBox.addActionListener(this);
+        this.binaryThresholdSpinner.addChangeListener(this);
     }
 
     private MouseInfoRecord getMouseInfoRecord(int i) {

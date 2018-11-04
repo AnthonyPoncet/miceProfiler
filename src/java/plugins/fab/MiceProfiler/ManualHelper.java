@@ -54,15 +54,16 @@ public class ManualHelper extends Overlay implements SequenceListener {
     //~ Instance fields
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    /** list of anchors created by this overlay. */
+    /** Color of this helper */
+    private final Color color;
+
+    /** List of anchors created by this overlay. */
     private List<MAnchor2D> activeAnchorList = Lists.newArrayList();
 
     /** TODO: What is that ? * */
     private final Map<Integer, MAnchor2D> time2controlPointMap = Maps.newHashMap();
-    private final Color color;
 
     /** Previous time position of the canvas. Stored to update the painter */
-    private int previousTPosition = -1;
     private MODE currentMode = MODE.NO_ACTION_MODE;
     private double lastFrameUpdate = 0.;
     private final int mouseNumber;
@@ -71,18 +72,18 @@ public class ManualHelper extends Overlay implements SequenceListener {
     private final int switchModeKeyCode;
 
     /** list of all manual helper to disable certain action like record mode when an other engage it. */
-    private final List<ManualHelper> manualHelperList = Lists.newArrayList();
+    private final List<ManualHelper> allManualHelper;
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Constructors
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    public ManualHelper(String name, Color color, int mouseNumber) {
+    public ManualHelper(String name, Color color, int mouseNumber, List<ManualHelper> allManualHelper) {
         super(name);
         this.color = color;
         this.mouseNumber = mouseNumber;
         // record itself
-        this.manualHelperList.add(this);
+        this.allManualHelper = allManualHelper;
 
         if (mouseNumber < 10) {
             switchModeKeyCode = mouseNumber + KeyEvent.VK_0;
@@ -102,7 +103,7 @@ public class ManualHelper extends Overlay implements SequenceListener {
         if (e.getKeyCode() == switchModeKeyCode) {
             if (currentMode == MODE.NO_ACTION_MODE) {
                 currentMode = MODE.RECORD_MODE;
-                for (ManualHelper m : manualHelperList) {
+                for (ManualHelper m : allManualHelper) {
                     if (m != this) {
                         m.setMode(MODE.NO_ACTION_MODE);
                     }
@@ -165,64 +166,6 @@ public class ManualHelper extends Overlay implements SequenceListener {
         /* The time window to display the controls */
         int timeWindow = 10;
 
-        // check if the time cursor has been shifted
-        if (false) {
-            if (currentT != previousTPosition) {
-                previousTPosition = currentT;
-                try {
-                    sequence.beginUpdate();
-
-                    // display anchors for the minus -10 frame to +10 frame
-                    ArrayList<MAnchor2D> newAnchorList = new ArrayList<MAnchor2D>();
-
-                    for (int t = currentT - timeWindow; t < (currentT + timeWindow); t++) {
-                        // check time bounding of the sequence
-                        if (t < 0)
-                            continue;
-                        if (t > sequence.getSizeT())
-                            continue;
-
-                        // retrieve anchor
-                        MAnchor2D anchor = getControlPoint(t);
-                        if (anchor == null)
-                            return;
-
-                        // set the editability of the anchor
-                        boolean editAnchor = false;
-
-                        anchor.setColor(Color.gray);
-                        anchor.setSelectedColor(Color.gray);
-                        anchor.setPriority(OverlayPriority.TEXT_LOW);
-                        if (currentT == t) {
-                            editAnchor = true;
-                            anchor.setColor(this.color);
-                            anchor.setSelectedColor(this.color);
-                            anchor.setPriority(OverlayPriority.TEXT_HIGH);
-                        }
-                        anchor.setCanBeRemoved(editAnchor);
-                        anchor.setEnabled(editAnchor);
-
-                        // add anchor
-                        newAnchorList.add(anchor);
-                        sequence.addOverlay(anchor);
-                    }
-
-                    // removes previous anchor point that are not in the newAnchorList
-                    for (Anchor2D anchor : activeAnchorList) {
-                        if (!newAnchorList.contains(anchor)) {
-                            sequence.removeOverlay(anchor);
-                        }
-                    }
-
-                    // place the created anchor list as the active list
-                    activeAnchorList = newAnchorList;
-
-                } finally {
-                    sequence.endUpdate();
-                }
-            }
-        }
-
         // paint the links between anchors.
         for (int t = currentT - timeWindow; t < (currentT + timeWindow); t++) {
             Anchor2D a1 = getControlPoint(t);
@@ -250,7 +193,7 @@ public class ManualHelper extends Overlay implements SequenceListener {
 
     @Override
     public void sequenceClosed(Sequence sequence) {
-        manualHelperList.remove(this);
+        allManualHelper.remove(this);
     }
 
     MAnchor2D getControlPoint(int t) {

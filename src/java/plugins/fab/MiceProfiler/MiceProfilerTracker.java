@@ -29,11 +29,14 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 
 import java.util.Date;
+import java.util.List;
 import java.util.prefs.Preferences;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+
+import com.google.common.collect.Lists;
 
 import icy.canvas.Canvas2D;
 import icy.canvas.IcyCanvas;
@@ -47,8 +50,6 @@ import icy.gui.viewer.Viewer;
 import icy.gui.viewer.ViewerEvent;
 import icy.gui.viewer.ViewerEvent.ViewerEventType;
 import icy.gui.viewer.ViewerListener;
-
-import icy.image.IcyBufferedImage;
 
 import icy.main.Icy;
 
@@ -105,21 +106,27 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     private final JLabel totalImageTime = new JLabel("time last image");
 
     //Video display window
-    private final Sequence sequenceOut = new Sequence();
+    private final Sequence sequence = new Sequence();
 
-    private final PhyMouse phyMouse = new PhyMouse(sequenceOut);
+    //Mouse management
+    private final PhyMouse phyMouse = new PhyMouse(sequence);
     private MouseGuidePainter mouseGuidePainter;
+    private ManualHelper manualHelper1;
+    private ManualHelper manualHelper2;
 
-    private final ManualHelper manualHelperA = new ManualHelper("Manual Helper", Color.RED, 1);
-    private final ManualHelper manualHelperB = new ManualHelper("Manual Helper", Color.GREEN, 2);
+    /** list of all manual helper to disable certain action like record mode when an other engage it. */
+    private final List<ManualHelper> manualHelperList = Lists.newArrayList();
 
+    //Trackall
     private TrackAllThread trackAllThread;
 
+    //Video Management
     private XugglerAviFile aviFile;
     private File currentFile;
     private final Timer checkBufferTimer = new Timer(1000, this);
     private ImageBufferThread bufferThread; //video reading thread
 
+    //??
     private StepThread stepThread;
 
     //~ ----------------------------------------------------------------------------------------------------------------
@@ -128,7 +135,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
     public void setSliderTimeValue(int value) {
         sliderTime.setValue(value);
-        createOrUpdateImageBuffer();
+        createOrUpdateImageBufferThread();
     }
 
     public void setTotalImageTimeText(String text) {
@@ -150,12 +157,12 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         readPositionFromROIButton.setEnabled(true);
     }
 
-    public ManualHelper getManualHelperA() {
-        return manualHelperA;
+    public ManualHelper getManualHelper1() {
+        return manualHelper1;
     }
 
-    public ManualHelper getManualHelperB() {
-        return manualHelperB;
+    public ManualHelper getManualHelper2() {
+        return manualHelper2;
     }
 
     //interface PluginImageAnalysis
@@ -163,10 +170,10 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     public void compute() {
         //Initialize video display window
         BufferedImage bImage = new BufferedImage(400, 400, BufferedImage.TYPE_3BYTE_BGR);
-        sequenceOut.setImage(0, 0, bImage);
-        addSequence(sequenceOut);
-        sequenceOut.removeAllImages();
-        sequenceOut.addPainter(this);
+        sequence.setImage(0, 0, bImage);
+        addSequence(sequence);
+        sequence.removeAllImages();
+        sequence.addPainter(this);
 
         // Start Physics Engines
         System.out.println("----------");
@@ -187,6 +194,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         mainPanel.add(GuiUtil.besidesPanel(startThreadStepButton, stopThreadStepButton));
         mainPanel.add(GuiUtil.besidesPanel(lastFramePhysicTime, lastFrameLoadTime));
         mainPanel.add(GuiUtil.besidesPanel(lastFrameForceMapTime, totalImageTime));
+        trackAllButton.addActionListener(this);
         stopTrackAllButton.addActionListener(this);
         stopTrackAllButton.setEnabled(false);
         readPositionFromROIButton.addActionListener(this);
@@ -197,18 +205,14 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         stopThreadStepButton.addActionListener(this);
         stopThreadStepButton.setEnabled(false);
 
-        //loadXMLButton.setEnabled(false);
-        //startButton.addActionListener(this);
-        //start2Button.addActionListener(this);
-        //trackAllButton.addActionListener(this);
-
         mainFrame.pack();
         mainFrame.center();
         mainFrame.setVisible(true);
         mainFrame.addToDesktopPane();
 
+        //Listen action on Sequence window
         ThreadUtil.invokeLater(() -> {
-            Viewer v = Icy.getMainInterface().getFirstViewer(sequenceOut);
+            Viewer v = Icy.getMainInterface().getFirstViewer(sequence);
 
             if (v != null)
                 v.addListener(MiceProfilerTracker.this);
@@ -230,24 +234,9 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         }
 
         if (e.getSource() == setVideoSourceButton) {
-            // load last preferences for loader.
-            JFileChooser fileChooser = new JFileChooser();
-            Preferences preferences = Preferences.userRoot().node("plugins/PhysicTracker/browser");
-            String path = preferences.get("path", "");
-            fileChooser.setCurrentDirectory(new File(path));
-            int x = preferences.getInt("x", 0);
-            int y = preferences.getInt("y", 0);
-            int width = preferences.getInt("width", 400);
-            int height = preferences.getInt("height", 400);
-            fileChooser.setLocation(x, y);
-            fileChooser.setPreferredSize(new Dimension(width, height));
-
+            JFileChooser fileChooser = createFileChooser();
             if (fileChooser.showDialog(null, "Load") == JFileChooser.APPROVE_OPTION) {
-                preferences.put("path", fileChooser.getCurrentDirectory().getAbsolutePath());
-                preferences.putInt("x", fileChooser.getX());
-                preferences.putInt("y", fileChooser.getY());
-                preferences.putInt("width", fileChooser.getWidth());
-                preferences.putInt("height", fileChooser.getHeight());
+                saveFileChooserPreferences(fileChooser);
 
                 try {
                     aviFile = new XugglerAviFile(fileChooser.getSelectedFile().getAbsolutePath(), true);
@@ -257,34 +246,45 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
                     return;
                 }
 
-                sequenceOut.removeAllImages();
-                sequenceOut.setName(fileChooser.getSelectedFile().getName());
+                //Initialize sequence
+                sequence.removeAllImages();
+                sequence.setName(fileChooser.getSelectedFile().getName());
                 displayImageAt(0);
 
+                //Set slider time
                 sliderTime.setMaximum((int) aviFile.getTotalNumberOfFrame());
                 sliderTime.setValue(0);
-                createOrUpdateImageBuffer();
+                createOrUpdateImageBufferThread();
 
-                currentFile = fileChooser.getSelectedFile();
-                phyMouse.loadXML(currentFile);
-
-                setVideoSourceButton.setText(fileChooser.getSelectedFile().getName());
-                useImageBufferOptimisation.setEnabled(false);
-                numberOfImageForBufferTextField.setEnabled(false);
-
+                //Configure phyMouse
                 synchronized (phyMouse) {
+                    phyMouse.loadXML(fileChooser.getSelectedFile());
                     phyMouse.generateMouse(246, 48, 0); // Mouse 1
                     phyMouse.generateMouse(238, 121, (float) (Math.PI)); // Mouse 2
                 }
 
-                sequenceOut.addListener(manualHelperA);
-                sequenceOut.addListener(manualHelperB);
-                sequenceOut.addOverlay(manualHelperA);
-                sequenceOut.addOverlay(manualHelperB);
-                sequenceOut.addOverlay(new LockScrollHelperOverlay());
+                //Update UI
+                useImageBufferOptimisation.setEnabled(false);
+                numberOfImageForBufferTextField.setEnabled(false);
 
+                //Configure sequence (remove all listener and Overlay and add new ones)
+                /*sequence.removeListener(manualHelper1);
+                 * sequence.removeListener(manualHelper2);
+                 * sequence.removeOverlay(manualHelper1);
+                 * sequence.removeOverlay(manualHelper2);
+                 *manualHelperList.clear();*/
+                sequence.removeOverlay(mouseGuidePainter);
+                /*manualHelper1 = new ManualHelper("Manual Helper", Color.RED, 1, manualHelperList);
+                 * manualHelperList.add(manualHelper1);
+                 * manualHelper2 = new ManualHelper("Manual Helper", Color.GREEN, 2, manualHelperList);
+                 * manualHelperList.add(manualHelper2);
+                 * sequence.addListener(manualHelper1);
+                 * sequence.addListener(manualHelper2);
+                 * sequence.addOverlay(manualHelper1);
+                 *sequence.addOverlay(manualHelper2);*/
+                sequence.addOverlay(new LockScrollHelperOverlay());
                 mouseGuidePainter = new MouseGuidePainter();
-                sequenceOut.addOverlay(mouseGuidePainter);
+                sequence.addOverlay(mouseGuidePainter);
             }
         }
 
@@ -318,7 +318,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
             trackAllButton.setEnabled(false);
             stopThreadStepButton.setEnabled(true);
             readPositionFromROIButton.setEnabled(false);
-            stepThread = new StepThread(sequenceOut, phyMouse, sliderTime);
+            stepThread = new StepThread(sequence, phyMouse, sliderTime);
             stepThread.start();
         }
 
@@ -341,7 +341,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
         if (e.getSource() == reverseTrackFromTButton) {
             phyMouse.swapIdentityRecordFromTToTheEnd(sliderTime.getValue());
-            sequenceOut.painterChanged(null);
+            sequence.painterChanged(null);
         }
     }
 
@@ -428,9 +428,9 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     @Override
     public void stateChanged(ChangeEvent e) {
         if (e.getSource() == sliderTime) {
-            createOrUpdateImageBuffer();
+            createOrUpdateImageBufferThread();
 
-            Viewer v = Icy.getMainInterface().getFirstViewer(sequenceOut);
+            Viewer v = Icy.getMainInterface().getFirstViewer(sequence);
 
             if (v != null)
                 v.setPositionT(sliderTime.getValue());
@@ -440,7 +440,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
             if (trackAllButton.isEnabled()) { // should be something better...
                 // set mouseA
                 {
-                    MouseInfoRecord record = phyMouse.getMouseARecord().get(sliderTime.getValue());
+                    MouseInfoRecord record = phyMouse.getMouse1Records().get(sliderTime.getValue());
                     if (record != null) {
                         mouseGuidePainter.getM1h().setPosition(record.getHeadPosition());
                         mouseGuidePainter.getM1b().setPosition(record.getTailPosition());
@@ -449,7 +449,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
                 // set mouseB
                 {
-                    MouseInfoRecord record = phyMouse.getMouseBRecord().get(sliderTime.getValue());
+                    MouseInfoRecord record = phyMouse.getMouse2Records().get(sliderTime.getValue());
                     if (record != null) {
                         mouseGuidePainter.getM2h().setPosition(record.getHeadPosition());
                         mouseGuidePainter.getM2b().setPosition(record.getTailPosition());
@@ -464,13 +464,36 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     public void viewerChanged(ViewerEvent event) {
         if ((event.getType() == ViewerEventType.POSITION_CHANGED) && (event.getDim() == DimensionId.T)) {
             sliderTime.setValue(event.getSource().getPositionT());
-            createOrUpdateImageBuffer();
+            createOrUpdateImageBufferThread();
         }
     }
 
     @Override
     public void viewerClosed(Viewer viewer) {
         // ignore
+    }
+
+    private void saveFileChooserPreferences(JFileChooser fileChooser) {
+        Preferences preferences = Preferences.userRoot().node("plugins/PhysicTracker/browser");
+        preferences.put("path", fileChooser.getCurrentDirectory().getAbsolutePath());
+        preferences.putInt("x", fileChooser.getX());
+        preferences.putInt("y", fileChooser.getY());
+        preferences.putInt("width", fileChooser.getWidth());
+        preferences.putInt("height", fileChooser.getHeight());
+    }
+
+    private JFileChooser createFileChooser() {
+        JFileChooser fileChooser = new JFileChooser();
+        Preferences preferences = Preferences.userRoot().node("plugins/PhysicTracker/browser");
+        String path = preferences.get("path", "");
+        fileChooser.setCurrentDirectory(new File(path));
+        int x = preferences.getInt("x", 0);
+        int y = preferences.getInt("y", 0);
+        int width = preferences.getInt("width", 400);
+        int height = preferences.getInt("height", 400);
+        fileChooser.setLocation(x, y);
+        fileChooser.setPreferredSize(new Dimension(width, height));
+        return fileChooser;
     }
 
     private synchronized int getCurrentFrame() {
@@ -485,7 +508,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
         return Integer.parseInt(numberOfImageForBufferTextField.getText());
     }
 
-    private void createOrUpdateImageBuffer() {
+    private void createOrUpdateImageBufferThread() {
         if (bufferThread != null) {
             bufferThread.interrupt();
             try {
@@ -494,7 +517,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
                 e1.printStackTrace();
             }
         }
-        bufferThread = new ImageBufferThread(getCurrentFrame(), getNumberOfImageForBuffer(), getTotalNumberOfFrame(), sequenceOut, aviFile);
+        bufferThread = new ImageBufferThread(getCurrentFrame(), getNumberOfImageForBuffer(), getTotalNumberOfFrame(), sequence, aviFile);
         bufferThread.setName("Buffer Thread");
         bufferThread.setPriority(Thread.NORM_PRIORITY);
         bufferThread.start();
@@ -550,7 +573,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
             //System.out.println("nb souris dans mouse model : " + phyMouse.mouseList.size());
 
         }
-        sequenceOut.painterChanged(null);
+        sequence.painterChanged(null);
     }
 
     private void saveXML() {
@@ -575,13 +598,13 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
     private void displayImageAt(int frameNumber) {
         if (aviFile != null) {
-            if (sequenceOut.getImage(frameNumber, 0) == null) {
-                boolean wasEmpty = sequenceOut.getNumImage() == 0;
+            if (sequence.getImage(frameNumber, 0) == null) {
+                boolean wasEmpty = sequence.getNumImage() == 0;
 
-                sequenceOut.setImage(frameNumber, 0, aviFile.getImage(frameNumber));
+                sequence.setImage(frameNumber, 0, aviFile.getImage(frameNumber));
 
                 if (wasEmpty) {
-                    for (Viewer viewer : sequenceOut.getViewers()) {
+                    for (Viewer viewer : sequence.getViewers()) {
                         if (viewer.getCanvas() instanceof Canvas2D) {
                             ((Canvas2D) viewer.getCanvas()).centerImage();
                         }
@@ -600,7 +623,7 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
     private void startTrackAll() {
         readPositionFromROI();
-        trackAllThread = new TrackAllThread(this, sequenceOut, phyMouse, mouseGuidePainter, getCurrentFrame(), getTotalNumberOfFrame());
+        trackAllThread = new TrackAllThread(this, sequence, phyMouse, mouseGuidePainter, getCurrentFrame(), getTotalNumberOfFrame());
         trackAllThread.start();
         stopTrackAllButton.setEnabled(true);
         trackAllButton.setEnabled(false);

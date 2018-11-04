@@ -154,11 +154,6 @@ class Mouse {
                 }
             }
         }
-
-        for (Body body : bodyList) {
-            EnergyInfo e = (EnergyInfo) body.getUserData();
-            //e.mouse = this;
-        }
     }
 
     //~ ----------------------------------------------------------------------------------------------------------------

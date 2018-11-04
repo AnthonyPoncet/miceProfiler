@@ -1,9 +1,3 @@
-/**
- *  Copyright Murex S.A.S., 2003-2018. All Rights Reserved.
- *
- *  This software program is proprietary and confidential to Murex S.A.S and its affiliates ("Murex") and, without limiting the generality of the foregoing reservation of rights, shall not be accessed, used, reproduced or distributed without the
- *  express prior written consent of Murex and subject to the applicable Murex licensing terms. Any modification or removal of this copyright notice is expressly prohibited.
- */
 package plugins.fab.MiceProfiler;
 
 import icy.sequence.Sequence;
@@ -67,8 +61,9 @@ class ImageBufferThread extends Thread {
 
             //Add missing buffered image [frameStart;frameEnd]
             for (int time = frameStart; time < frameEnd; time++) {
-                if (sequence.getImage(time, 0) == null)
+                if (sequence.getImage(time, 0) == null) {
                     sequence.setImage(time, 0, aviFile.getImage(time));
+                }
 
                 if (isInterrupted()) {
                     System.out.println("ImageBufferThread: Interrupted!");
@@ -89,8 +84,9 @@ class ImageBufferThread extends Thread {
         float nbImageLoaded = 0;
 
         for (int t = frameStart; t < frameEnd; t++) {
-            if (sequence.getImage(t, 0) != null)
+            if (sequence.getImage(t, 0) != null) {
                 nbImageLoaded++;
+            }
         }
 
         return (int) (nbImageLoaded * 100f / nbImage);
