@@ -134,6 +134,9 @@ public class MouseGuidePainter extends Overlay implements Anchor2DPositionListen
 
     @Override
     public void paint(Graphics2D g, Sequence sequence, IcyCanvas canvas) {
+        if ((g == null) || (sequence == null))
+            return;
+
         if (!visible)
             return;
 

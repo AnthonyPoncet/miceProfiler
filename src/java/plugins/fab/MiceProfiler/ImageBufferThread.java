@@ -43,7 +43,7 @@ class ImageBufferThread extends Thread {
             int frameStart = getFirstFrame();
             int frameEnd = getLastFrame();
 
-            System.out.println("ImageBufferThread: start, window --> " + frameStart + " to " + frameEnd);
+            //System.out.println("ImageBufferThread: start, window --> " + frameStart + " to " + frameEnd);
 
             //Remove buffered image from sequence that are outside [frameStart;frameEnd]
             for (int time = 0; time < sequence.getSizeT(); time++) {
@@ -52,12 +52,11 @@ class ImageBufferThread extends Thread {
                 }
 
                 if (isInterrupted()) {
-                    System.out.println("ImageBufferThread: Interrupted!");
                     return;
                 }
             }
 
-            System.out.println("ImageBufferThread: Remove buffered image --> done");
+            //System.out.println("ImageBufferThread: Remove buffered image --> done");
 
             //Add missing buffered image [frameStart;frameEnd]
             for (int time = frameStart; time < frameEnd; time++) {
@@ -66,12 +65,11 @@ class ImageBufferThread extends Thread {
                 }
 
                 if (isInterrupted()) {
-                    System.out.println("ImageBufferThread: Interrupted!");
                     return;
                 }
             }
 
-            System.out.println("ImageBufferThread: Add missing buffered image --> done");
+            //System.out.println("ImageBufferThread: Add missing buffered image --> done");
         } catch (final Exception e) {
             e.printStackTrace();
         }

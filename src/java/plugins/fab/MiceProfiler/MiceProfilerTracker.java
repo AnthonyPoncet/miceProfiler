@@ -135,7 +135,6 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
 
     public void setSliderTimeValue(int value) {
         sliderTime.setValue(value);
-        createOrUpdateImageBufferThread();
     }
 
     public void setTotalImageTimeText(String text) {
@@ -464,7 +463,6 @@ public class MiceProfilerTracker extends Plugin implements Painter, PluginImageA
     public void viewerChanged(ViewerEvent event) {
         if ((event.getType() == ViewerEventType.POSITION_CHANGED) && (event.getDim() == DimensionId.T)) {
             sliderTime.setValue(event.getSource().getPositionT());
-            createOrUpdateImageBufferThread();
         }
     }
 

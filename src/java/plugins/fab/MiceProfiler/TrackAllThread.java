@@ -51,17 +51,16 @@ class TrackAllThread extends Thread {
     public void run() {
         System.out.println("Trackall: run()");
         for (int t = startingFrame; t < totalNumberOfImage; t++) {
-            System.out.println("Trackall: frame number " + t);
+            //System.out.println("Trackall: frame number " + t);
             double totalImageTimerStart = Calendar.getInstance().getTimeInMillis();
 
             if (isInterrupted()) {
                 ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
-                System.out.println("Trackall: interrupt! ");
                 return;
             }
 
             miceProfilerTracker.setSliderTimeValue(t); // image should be updated in viewer here.
-            System.out.println("Trackall: slider updated, wait for image to be loaded.");
+            //System.out.println("Trackall: slider updated, wait for image to be loaded.");
             IcyBufferedImage imageSource = sequence.getImage(t, 0);
             //Wait for bufferization from ImageBufferThread
             while (imageSource == null) {
@@ -73,47 +72,42 @@ class TrackAllThread extends Thread {
 
                 if (isInterrupted()) {
                     ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
-                    System.out.println("Trackall: interrupt! ");
                     return;
                 }
 
                 imageSource = sequence.getImage(t, 0);
             }
-            System.out.println("Trackall: image loaded.");
 
             // use the record to initialize the head position of the mouse.
-            System.out.println("Trackall: use record.");
+            //System.out.println("Trackall: use record.");
             //phyMouse.setHeadLocation(0, miceProfilerTracker.getManualHelper1().getControlPoint(t));
             //phyMouse.setHeadLocation(1, miceProfilerTracker.getManualHelper2().getControlPoint(t));
             phyMouse.computeForcesMap(imageSource);
-            System.out.println("Trackall: use record --> done.");
 
             if (isInterrupted()) {
                 ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
-                System.out.println("Trackall: interrupt! ");
                 return;
             }
 
             for (int i = 0; i < ITERATION; i++) {
-                System.out.println("Trackall: compute and worldstep, iteration " + i + ".");
+                //System.out.println("Trackall: compute and worldstep, iteration " + i + ".");
+                if ((i > 3) && (phyMouse.isStable()))
+                    break;
+
                 phyMouse.computeForces();
                 phyMouse.worldStep(t);
-                System.out.println("Trackall: compute and worldstep, iteration " + i + " --> done.");
 
                 if (isInterrupted()) {
                     ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
-                    System.out.println("Trackall: interrupt! ");
                     return;
                 }
             }
 
-            System.out.println("Trackall: applyMotionPrediction.");
+            //System.out.println("Trackall: applyMotionPrediction.");
             phyMouse.applyMotionPrediction();
-            System.out.println("Trackall: applyMotionPrediction --> done.");
 
-            System.out.println("Trackall: update painter.");
+            //System.out.println("Trackall: update painter.");
             updateMouseGuidePainter();
-            System.out.println("Trackall: update painter --> done.");
 
             double totalImageMs = (Calendar.getInstance().getTimeInMillis() - totalImageTimerStart);
             miceProfilerTracker.setTotalImageTimeText("total image time: " + totalImageMs + " ms / FPS: " + (((int) (10 * 1000d / totalImageMs)) / 10d));
@@ -125,8 +119,6 @@ class TrackAllThread extends Thread {
                     e.printStackTrace();
                 }
             }
-
-            System.out.println("Trackall: frame number " + t + " --> done.");
         }
         // System.out.print("Ok.");
 

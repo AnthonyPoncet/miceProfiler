@@ -171,7 +171,7 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
     public void generateMouse(float x, float y, float alpha) {
         mouseScaleModel = Float.parseFloat(scaleTextField.getText());
-        mouseList.add(new Mouse(world, x, y, alpha, this));
+        mouseList.add(new Mouse(world, x, y, alpha, bodyList, this));
     }
 
     public void computeForcesMap(IcyBufferedImage imageSource) {
@@ -461,25 +461,23 @@ public class PhyMouse implements ActionListener, ChangeListener {
         motion_prediction_state = true;
 
         // record and motion prediction.
-        for (Mouse mouse : mouseList) {
-            for (Body body : mouse.getBodyList()) {
-                // record current position.
-                EnergyInfo energyInfo = (EnergyInfo) body.getUserData();
-                // copy the object.
-                ROVector2f vCopy = new Vector2f(body.getLastPosition().getX(), body.getLastPosition().getY());
+        for (Body body : bodyList) {
+            // record current position.
+            EnergyInfo energyInfo = (EnergyInfo) body.getUserData();
+            // copy the object.
+            ROVector2f vCopy = new Vector2f(body.getLastPosition().getX(), body.getLastPosition().getY());
 
-                body.setForce(0, 0);
+            body.setForce(0, 0);
 
-                energyInfo.previousPositionList.add(vCopy);
+            energyInfo.previousPositionList.add(vCopy);
 
-                // compute la prediction (t) - (t-1)
-                if (energyInfo.previousPositionList.size() > 1) { // no prediction for first frame.
-                    Vector2f newVelocity = new Vector2f(10f * (energyInfo.previousPositionList.get(1).getX() - energyInfo.previousPositionList.get(0).getX()),
-                        10f * (energyInfo.previousPositionList.get(1).getY() - energyInfo.previousPositionList.get(0).getY()));
+            // compute la prediction (t) - (t-1)
+            if (energyInfo.previousPositionList.size() > 1) { // no prediction for first frame.
+                Vector2f newVelocity = new Vector2f(10f * (energyInfo.previousPositionList.get(1).getX() - energyInfo.previousPositionList.get(0).getX()),
+                    10f * (energyInfo.previousPositionList.get(1).getY() - energyInfo.previousPositionList.get(0).getY()));
 
-                    body.adjustVelocity(newVelocity);
-                    energyInfo.previousPositionList.remove(energyInfo.previousPositionList.get(0));
-                }
+                body.adjustVelocity(newVelocity);
+                energyInfo.previousPositionList.remove(energyInfo.previousPositionList.get(0));
             }
         }
 
@@ -933,6 +931,11 @@ public class PhyMouse implements ActionListener, ChangeListener {
 //              }
     }
 
+
+    public boolean isStable() {
+        return !(world.getTotalEnergy() > 1000d);
+    }
+
     public void loadXML(File currentFile) {
         // LOAD DOCUMENT
         mouse1Records.clear();
@@ -1210,5 +1213,4 @@ public class PhyMouse implements ActionListener, ChangeListener {
             }
         }
     }
-
 }

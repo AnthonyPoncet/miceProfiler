@@ -5,6 +5,11 @@
     <artifactId>mice.profiler</artifactId>
     <version>1.0.0</version>
 
+    <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+
     <repositories>
         <repository>
             <id>central</id>
@@ -32,21 +37,32 @@
             <artifactId>action</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>C:/Users/aponcet/Downloads/icy/icy.jar</systemPath>
+            <systemPath>D:/Downloads/icy/icy.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>net.phys2d</groupId>
             <artifactId>raw</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>C:/Users/aponcet/Downloads/icy/lib/phys2d.jar</systemPath>
+            <systemPath>D:/Downloads/icy/lib/phys2d.jar</systemPath>
         </dependency>
     </dependencies>
 
     <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+
         <directory>target</directory>
         <outputDirectory>target/classes</outputDirectory>
-        <finalName>${artifactId}-${version}</finalName>
+        <finalName>MiceProfilerTracker</finalName>
         <testOutputDirectory>target/test-classes</testOutputDirectory>
         <sourceDirectory>src/java</sourceDirectory>
     </build>

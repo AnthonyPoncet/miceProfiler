@@ -40,13 +40,11 @@ class Mouse {
     private final Body tommyBody;
     private final Body neckAttachBody;
 
-    private final List<Body> bodyList = Lists.newArrayList();
-
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Constructors
     //~ ----------------------------------------------------------------------------------------------------------------
 
-    public Mouse(World world, float x, float y, float alpha, PhyMouse phyMouse) {
+    public Mouse(World world, float x, float y, float alpha, List<Body> bodyList, PhyMouse phyMouse) {
         tommyBody = generateBody(BodyType.CIRCLE, 1, 60, 30, 30, EnergyMap.BINARY_MOUSE, false);
         bodyList.add(this.tommyBody);
         setPosition(this.tommyBody, 0f, 80f, x, y, alpha);
@@ -174,10 +172,6 @@ class Mouse {
 
     public Body getNeckAttachBody() {
         return neckAttachBody;
-    }
-
-    public List<Body> getBodyList() {
-        return bodyList;
     }
 
     private void setPosition(Body body, float x, float y, float dx, float dy, float alpha) {
