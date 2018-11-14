@@ -7,29 +7,17 @@ import icy.image.IcyBufferedImage;
 import icy.sequence.Sequence;
 
 
-class StepThread extends Thread {
-
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Instance fields
-    //~ ----------------------------------------------------------------------------------------------------------------
+public class StepThread extends Thread {
 
     private final Sequence sequence;
     private final PhyMouse phyMouse;
     private final JSlider sliderTime;
-
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Constructors
-    //~ ----------------------------------------------------------------------------------------------------------------
 
     public StepThread(Sequence sequence, PhyMouse phyMouse, JSlider sliderTime) {
         this.sequence = sequence;
         this.phyMouse = phyMouse;
         this.sliderTime = sliderTime;
     }
-
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Methods
-    //~ ----------------------------------------------------------------------------------------------------------------
 
     @Override
     public void run() {

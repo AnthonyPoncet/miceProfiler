@@ -37,14 +37,14 @@
             <artifactId>action</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>D:/Downloads/icy/icy.jar</systemPath>
+            <systemPath>D:/OneDrive - Murex/Downloads/icy/icy.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>net.phys2d</groupId>
             <artifactId>raw</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>D:/Downloads/icy/lib/phys2d.jar</systemPath>
+            <systemPath>D:/OneDrive - Murex/Downloads/icy/lib/phys2d.jar</systemPath>
         </dependency>
     </dependencies>
 

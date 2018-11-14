@@ -4,13 +4,14 @@ import java.awt.geom.Point2D;
 
 import java.util.List;
 
-import com.google.common.collect.Lists;
-
 import net.phys2d.raw.Body;
 import net.phys2d.raw.FixedJoint;
 import net.phys2d.raw.World;
 import net.phys2d.raw.shapes.Box;
 import net.phys2d.raw.shapes.Circle;
+
+import plugins.fab.MiceProfiler.model.EnergyInfo;
+import plugins.fab.MiceProfiler.model.EnergyMap;
 
 
 class Mouse {

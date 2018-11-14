@@ -8,20 +8,14 @@ import icy.sequence.Sequence;
 
 import icy.system.thread.ThreadUtil;
 
+import plugins.fab.MiceProfiler.view.MiceProfilerWindow;
 
-class TrackAllThread extends Thread {
 
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Static fields/initializers 
-    //~ ----------------------------------------------------------------------------------------------------------------
+public class TrackAllThread extends Thread {
 
     private static final int ITERATION = 50;
 
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Instance fields 
-    //~ ----------------------------------------------------------------------------------------------------------------
-
-    private final MiceProfilerTracker miceProfilerTracker;
+    private final MiceProfilerWindow miceProfilerWindow;
     private final Sequence sequence;
     private final PhyMouse phyMouse;
     private final MouseGuidePainter mouseGuidePainter;
@@ -29,12 +23,8 @@ class TrackAllThread extends Thread {
     private final int startingFrame;
     private final int totalNumberOfImage;
 
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Constructors 
-    //~ ----------------------------------------------------------------------------------------------------------------
-
-    public TrackAllThread(MiceProfilerTracker miceProfilerTracker, Sequence sequence, PhyMouse phyMouse, MouseGuidePainter mouseGuidePainter, int startingFrame, int totalNumberOfImage) {
-        this.miceProfilerTracker = miceProfilerTracker;
+    public TrackAllThread(MiceProfilerWindow miceProfilerWindow, Sequence sequence, PhyMouse phyMouse, MouseGuidePainter mouseGuidePainter, int startingFrame, int totalNumberOfImage) {
+        this.miceProfilerWindow = miceProfilerWindow;
         this.sequence = sequence;
         this.phyMouse = phyMouse;
         this.mouseGuidePainter = mouseGuidePainter;
@@ -42,10 +32,6 @@ class TrackAllThread extends Thread {
         this.startingFrame = startingFrame;
         this.totalNumberOfImage = totalNumberOfImage;
     }
-
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Methods 
-    //~ ----------------------------------------------------------------------------------------------------------------
 
     @Override
     public void run() {
@@ -55,11 +41,11 @@ class TrackAllThread extends Thread {
             double totalImageTimerStart = Calendar.getInstance().getTimeInMillis();
 
             if (isInterrupted()) {
-                ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
+                ThreadUtil.invokeLater(miceProfilerWindow::deactivateTrackAll);
                 return;
             }
 
-            miceProfilerTracker.setSliderTimeValue(t); // image should be updated in viewer here.
+            miceProfilerWindow.setSliderTimeValue(t); // image should be updated in viewer here.
             //System.out.println("Trackall: slider updated, wait for image to be loaded.");
             IcyBufferedImage imageSource = sequence.getImage(t, 0);
             //Wait for bufferization from ImageBufferThread
@@ -71,7 +57,7 @@ class TrackAllThread extends Thread {
                 }
 
                 if (isInterrupted()) {
-                    ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
+                    ThreadUtil.invokeLater(miceProfilerWindow::deactivateTrackAll);
                     return;
                 }
 
@@ -85,20 +71,21 @@ class TrackAllThread extends Thread {
             phyMouse.computeForcesMap(imageSource);
 
             if (isInterrupted()) {
-                ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
+                ThreadUtil.invokeLater(miceProfilerWindow::deactivateTrackAll);
                 return;
             }
 
             for (int i = 0; i < ITERATION; i++) {
                 //System.out.println("Trackall: compute and worldstep, iteration " + i + ".");
-                if ((i > 3) && (phyMouse.isStable()))
+                if ((i > 3) && (phyMouse.isStable())) {
                     break;
+                }
 
                 phyMouse.computeForces();
                 phyMouse.worldStep(t);
 
                 if (isInterrupted()) {
-                    ThreadUtil.invokeLater(miceProfilerTracker::deactivateTrackAll);
+                    ThreadUtil.invokeLater(miceProfilerWindow::deactivateTrackAll);
                     return;
                 }
             }
@@ -110,9 +97,9 @@ class TrackAllThread extends Thread {
             updateMouseGuidePainter();
 
             double totalImageMs = (Calendar.getInstance().getTimeInMillis() - totalImageTimerStart);
-            miceProfilerTracker.setTotalImageTimeText("total image time: " + totalImageMs + " ms / FPS: " + (((int) (10 * 1000d / totalImageMs)) / 10d));
+            miceProfilerWindow.setTotalImageTimeText("total image time: " + totalImageMs + " ms / FPS: " + (((int) (10 * 1000d / totalImageMs)) / 10d));
 
-            if (miceProfilerTracker.isLimitTrackingSpeedCheckBoxChecked()) {
+            if (miceProfilerWindow.isLimitTrackingSpeedCheckBoxChecked()) {
                 try {
                     Thread.sleep((int) (1000d / 15d));
                 } catch (InterruptedException e) {
@@ -122,11 +109,11 @@ class TrackAllThread extends Thread {
         }
         // System.out.print("Ok.");
 
-        miceProfilerTracker.deactivateTrackAll();
+        miceProfilerWindow.deactivateTrackAll();
     }
 
     private void updateMouseGuidePainter() {
-        mouseGuidePainter.setVisible(miceProfilerTracker.isUpdatePhysicsGuidesCheckBoxChecked());
+        mouseGuidePainter.setVisible(miceProfilerWindow.isUpdatePhysicsGuidesCheckBoxChecked());
 
         mouseGuidePainter.getM1h().moveTo((int) phyMouse.getMouseList().get(0).getHead().getPosition().getX(), (int) phyMouse.getMouseList().get(0).getHead().getPosition().getY());
         mouseGuidePainter.getM1b().moveTo((int) phyMouse.getMouseList().get(0).getTail().getPosition().getX(), (int) phyMouse.getMouseList().get(0).getTail().getPosition().getY());

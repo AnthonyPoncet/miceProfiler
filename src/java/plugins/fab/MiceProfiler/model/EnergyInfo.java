@@ -1,4 +1,4 @@
-package plugins.fab.MiceProfiler;
+package plugins.fab.MiceProfiler.model;
 
 import java.util.List;
 
@@ -7,7 +7,7 @@ import com.google.common.collect.Lists;
 import net.phys2d.math.ROVector2f;
 
 
-class EnergyInfo {
+public class EnergyInfo {
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Instance fields

@@ -7,7 +7,7 @@ import icy.sequence.Sequence;
  * Load numberOfFrameForBuffer frame into Sequence (buffer) from aviFile. First frame being currentTimeSliderValue - 10
  * Last frame being currentTimeSliderValue + numberOfFrameForBuffer (or totalNumberOfFrame if overflow)
  */
-class ImageBufferThread extends Thread {
+public class ImageBufferThread extends Thread {
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Instance fields

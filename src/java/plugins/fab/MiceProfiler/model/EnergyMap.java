@@ -1,6 +1,6 @@
-package plugins.fab.MiceProfiler;
+package plugins.fab.MiceProfiler.model;
 
-enum EnergyMap {
+public enum EnergyMap {
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Enum constants
