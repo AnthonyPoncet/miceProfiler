@@ -43,6 +43,7 @@ import icy.sequence.Sequence;
 
 import plugins.fab.MiceProfiler.controller.MiceProfilerActionListener;
 import plugins.fab.MiceProfiler.controller.SequenceViewerListener;
+import plugins.fab.MiceProfiler.view.MiceProfilerOverlay;
 import plugins.fab.MiceProfiler.view.MiceProfilerWindow;
 import plugins.fab.MiceProfiler.view.SequenceWindow;
 
@@ -54,17 +55,19 @@ public class MiceProfilerTracker extends PluginActionable implements ChangeListe
 
     private MiceProfilerWindow miceProfilerWindow;
     private SequenceWindow sequenceWindow;
+    private MiceProfilerOverlay miceProfilerOverlay;
 
     //interface PluginActionable
     @Override
     public void run() {
         miceProfilerWindow = new MiceProfilerWindow();
+        miceProfilerOverlay = new MiceProfilerOverlay();
         sequenceWindow = new SequenceWindow();
         MiceProfilerActionListener miceProfilerActionListener = new MiceProfilerActionListener(miceProfilerWindow, sequenceWindow);
         SequenceViewerListener sequenceViewerListener = new SequenceViewerListener(miceProfilerWindow);
 
         miceProfilerWindow.initialize(miceProfilerActionListener, this);
-        sequenceWindow.initialize(this, miceProfilerWindow, sequenceViewerListener);
+        sequenceWindow.initialize(this, miceProfilerOverlay, sequenceViewerListener);
 
         // Start Physics Engines
         System.out.println("----------");

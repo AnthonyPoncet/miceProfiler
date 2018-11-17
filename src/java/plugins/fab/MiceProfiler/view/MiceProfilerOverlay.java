@@ -1,4 +1,4 @@
-package plugins.fab.MiceProfiler.controller;
+package plugins.fab.MiceProfiler.view;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;

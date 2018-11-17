@@ -8,6 +8,7 @@
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
+        <icy.lib>D:\Downloads\icy</icy.lib>
     </properties>
 
     <repositories>
@@ -37,14 +38,14 @@
             <artifactId>action</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>D:/OneDrive - Murex/Downloads/icy/icy.jar</systemPath>
+            <systemPath>${icy.lib}/icy.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>net.phys2d</groupId>
             <artifactId>raw</artifactId>
             <version>1.0.CUSTOM</version>
             <scope>system</scope>
-            <systemPath>D:/OneDrive - Murex/Downloads/icy/lib/phys2d.jar</systemPath>
+            <systemPath>${icy.lib}/lib/phys2d.jar</systemPath>
         </dependency>
     </dependencies>
 
