@@ -1,4 +1,4 @@
-package plugins.fab.MiceProfiler;
+package plugins.fab.MiceProfiler.Utilities;
 
 import icy.sequence.Sequence;
 

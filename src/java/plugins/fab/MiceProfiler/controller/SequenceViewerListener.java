@@ -20,9 +20,9 @@ public class SequenceViewerListener implements ViewerListener {
     //TODO: check if it is not redundant. Changing slider modify frame display and not the other way around.
     @Override
     public void viewerChanged(ViewerEvent event) {
-        if ((event.getType() == ViewerEvent.ViewerEventType.POSITION_CHANGED) && (event.getDim() == DimensionId.T)) {
+        /*if ((event.getType() == ViewerEvent.ViewerEventType.POSITION_CHANGED) && (event.getDim() == DimensionId.T)) {
             miceProfilerWindow.setSliderTimeValue(event.getSource().getPositionT());
-        }
+        }*/
     }
 
     @Override

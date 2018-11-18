@@ -21,25 +21,19 @@ package plugins.fab.MiceProfiler;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 
 import java.io.File;
 
-import java.util.Iterator;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.FactoryConfigurationError;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
@@ -50,12 +44,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import icy.canvas.IcyCanvas;
-import icy.canvas.IcyCanvas2D;
-
-import icy.gui.util.GuiUtil;
 
 import icy.image.IcyBufferedImage;
-import icy.image.IcyBufferedImageUtil;
 
 import icy.main.Icy;
 
@@ -71,31 +61,26 @@ import net.phys2d.raw.Body;
 import net.phys2d.raw.DistanceJoint;
 import net.phys2d.raw.SlideJoint;
 import net.phys2d.raw.World;
-import net.phys2d.raw.shapes.Box;
-import net.phys2d.raw.shapes.Circle;
-import net.phys2d.raw.shapes.Polygon;
-import net.phys2d.raw.shapes.Shape;
 import net.phys2d.raw.strategies.QuadSpaceStrategy;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import plugins.fab.MiceProfiler.model.EnergyInfo;
-import plugins.fab.MiceProfiler.model.EnergyMap;
+import plugins.fab.MiceProfiler.Utilities.XMLTools;
+import plugins.fab.MiceProfiler.model.*;
 
 
 /**
  * Physics model of the 2d mouse
  */
-public class PhyMouse implements ActionListener, ChangeListener {
+public class PhyMouse {
 
     private static final int SEUIL_EDGE_MAP = 32;
 
     private static final float BINARY_ENERGY_MULTIPLICATOR = 10000;
     private static final float GRADIENT_ENERGY_MULTIPLICATOR = 10000;
 
-    private final Sequence sequence;
     private final World world;
 
     //Maps for ?
@@ -108,34 +93,42 @@ public class PhyMouse implements ActionListener, ChangeListener {
     private final List<DistanceJoint> distanceJointList = Lists.newArrayList();
 
     //Mouse detail
-    private final List<Mouse> mouseList = Lists.newArrayList();
-    private final Map<Integer, MouseInfoRecord> mouse1Records = Maps.newHashMap();
-    private final Map<Integer, MouseInfoRecord> mouse2Records = Maps.newHashMap();
+    private Mouse mouseA;
+    private Mouse mouseB;
+
+    //Mouse records
+    private final Map<Integer, MouseInfoRecord> mouseARecords = Maps.newHashMap();
+    private final Map<Integer, MouseInfoRecord> mouseBRecords = Maps.newHashMap();
 
     /** used by painter */
     private boolean motion_prediction_state = false;
 
-    //??
+    // use for differenciate tracking white or black mouses
     private boolean reverseThresholdBoolean = false;
 
     //??
     private final MAnchor2D[] headForcedPosition = new MAnchor2D[2];
 
-    public PhyMouse(Sequence sequence) {
-        this.sequence = sequence;
+    public PhyMouse() {
         this.world = new World(new Vector2f(0, 0), 10, new QuadSpaceStrategy(20, 5));
         this.world.clear();
         this.world.setGravity(0, 0);
-
-        fillWindowPanel();
     }
 
-    public void generateMouse(float x, float y, float alpha) {
-        mouseScaleModel = Float.parseFloat(scaleTextField.getText());
-        mouseList.add(new Mouse(world, x, y, alpha, bodyList, this));
+    public void generateMouse(MouseGuide mouseGuideA, MouseGuide mouseGuideB) {
+        mouseA = generateMouse(mouseGuideA);
+        mouseB = generateMouse(mouseGuideB);
     }
 
-    public void computeForcesMap(IcyBufferedImage imageSource) {
+    private Mouse generateMouse(MouseGuide mouseGuide) {
+        float x = (float) mouseGuide.getHead().getX();
+        float y = (float) mouseGuide.getHead().getY();
+        float alpha = (float) (mouseGuide.getAlpha() + ((float) Math.PI / 2f));
+        //mouseScaleModel = Float.parseFloat(scaleTextField.getText());
+        return new Mouse(world, x, y, alpha, bodyList, this);
+    }
+
+    public void generateMap(IcyBufferedImage imageSource) {
         //Retrieve ROI if added (get last one, but only one expected)
         ROI2D clipROI = null;
         Sequence activeSequence = Icy.getMainInterface().getFocusedSequence();
@@ -166,11 +159,11 @@ public class PhyMouse implements ActionListener, ChangeListener {
                         val = 0;
                     }
                 } else {
-                    if (val < thresholdBinaryMap) {
+                    /*if (val < thresholdBinaryMap) {
                         val = (!reverseThresholdBoolean) ? 255 : 0;
                     } else {
                         val = (!reverseThresholdBoolean) ? 0 : 255;
-                    }
+                    }*/
                 }
 
                 binaryMapDataBuffer[x + (y * imageSourceWidth)] = (byte) val;
@@ -207,35 +200,52 @@ public class PhyMouse implements ActionListener, ChangeListener {
         }
     }
 
+    public Mouse getMouseA() {
+        return mouseA;
+    }
+
+    public Mouse getMouseB() {
+        return mouseB;
+    }
+
+    public IcyBufferedImage getBinaryMap() {
+        return binaryMap;
+    }
+
+    public IcyBufferedImage getEdgeMap() {
+        return edgeMap;
+    }
+
+    public List<Body> getBodyList() {
+        return bodyList;
+    }
+
+    public List<SlideJoint> getSlideJointList() {
+        return slideJointList;
+    }
+
+    public List<DistanceJoint> getDistanceJointList() {
+        return distanceJointList;
+    }
+
     public void clearMapForROI() {
-        mouseList.clear();
+        mouseA = null;
+        mouseB = null;
         bodyList.clear();
         distanceJointList.clear();
         slideJointList.clear();
         world.clear();
     }
 
-    public List<Mouse> getMouseList() {
-        return mouseList;
-    }
-
-    public Map<Integer, MouseInfoRecord> getMouse1Records() {
-        return mouse1Records;
-    }
-
-    public Map<Integer, MouseInfoRecord> getMouse2Records() {
-        return mouse2Records;
-    }
-
     public void computeForces() {
         // force location of the head
         if (headForcedPosition[0] != null) {
             MAnchor2D pos = headForcedPosition[0];
-            mouseList.get(0).getHead().setPosition((float) pos.getX(), (float) pos.getY());
+            mouseA.getHead().setPosition((float) pos.getX(), (float) pos.getY());
         }
         if (headForcedPosition[1] != null) {
             MAnchor2D pos = headForcedPosition[1];
-            mouseList.get(1).getHead().setPosition((float) pos.getX(), (float) pos.getY());
+            mouseB.getHead().setPosition((float) pos.getX(), (float) pos.getY());
         }
 
         // Create mask
@@ -383,12 +393,12 @@ public class PhyMouse implements ActionListener, ChangeListener {
     public void swapIdentityRecordFromTToTheEnd(int time) {
         // look for maximum time recorded
         int maxT = 0;
-        for (int i : mouse1Records.keySet()) {
+        for (int i : mouseARecords.keySet()) {
             if (i > maxT) {
                 maxT = i;
             }
         }
-        for (int i : mouse2Records.keySet()) {
+        for (int i : mouseBRecords.keySet()) {
             if (i > maxT) {
                 maxT = i;
             }
@@ -396,11 +406,11 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
         // swap data
         for (int t = time; t <= maxT; t++) {
-            MouseInfoRecord recA = mouse1Records.get(t);
-            MouseInfoRecord recB = mouse2Records.get(t);
+            MouseInfoRecord recA = mouseARecords.get(t);
+            MouseInfoRecord recB = mouseBRecords.get(t);
 
-            mouse1Records.put(t, recB);
-            mouse2Records.put(t, recA);
+            mouseARecords.put(t, recB);
+            mouseBRecords.put(t, recA);
         }
 
     }
@@ -430,9 +440,9 @@ public class PhyMouse implements ActionListener, ChangeListener {
      * Applique la motion prediction et passe l'inertie a 0.
      */
     public void applyMotionPrediction() {
-        if (!useMotionPredictionCheckBox.isSelected()) {
+        /*if (!useMotionPredictionCheckBox.isSelected()) {
             return;
-        }
+        }*/
 
         motion_prediction_state = true;
 
@@ -475,23 +485,11 @@ public class PhyMouse implements ActionListener, ChangeListener {
 
     }
 
-    public void paint(Graphics g, IcyCanvas canvas) {
-
-    }
-
-    public List<Body> getBodyList() {
-        return bodyList;
-    }
-
-    public JPanel getPanel() {
-        return panel;
-    }
-
     public void actionPerformed(ActionEvent e) {
-        if ((e.getSource() == displayForceCheckBox) || (e.getSource() == displayEnergyAreaCheckBox) || (e.getSource() == displayBodyCenterCheckBox) || (e.getSource() == displayBodyShapeCheckBox) ||
+        /*if ((e.getSource() == displayForceCheckBox) || (e.getSource() == displayEnergyAreaCheckBox) || (e.getSource() == displayBodyCenterCheckBox) || (e.getSource() == displayBodyShapeCheckBox) ||
             (e.getSource() == displayGlobalSplineCheckBox) || (e.getSource() == displaySlideJointCheckBox) || (e.getSource() == displayBinaryMapCheckBox) || (e.getSource() == displayGradientMapCheckBox)) {
             sequence.painterChanged(null);
-        }
+        }*/
 
         /*if (e.getSource() == computeATestAnchorVectorMapButton) {
          *  Sequence sequence = Icy.getMainInterface().getFocusedSequence();
@@ -728,86 +726,53 @@ public class PhyMouse implements ActionListener, ChangeListener {
         return !(world.getTotalEnergy() > 1000d);
     }
 
-    public void fromXML(File currentFile) {
-        // LOAD DOCUMENT
-        mouse1Records.clear();
-        mouse2Records.clear();
+    public void initializeMouseRecordsFromXML(File videoFile) {
+        mouseARecords.clear();
+        mouseBRecords.clear();
 
-        File XMLFile = new File(currentFile.getAbsoluteFile() + ".xml");
+        // Load document
+        File XMLFile = new File(videoFile.getAbsoluteFile() + ".xml");
         if (!XMLFile.exists()) {
             System.out.println("No XML linked to video provided.s");
             return;
         }
-
         Document XMLDocument = XMLTools.loadDocument(XMLFile);
 
         XPath xpath = XPathFactory.newInstance().newXPath();
-        {
-            String expression = "//MOUSEA/DET";
-            NodeList nodes;
-            try {
-                nodes = (NodeList) xpath.evaluate(expression, XMLDocument, XPathConstants.NODESET);
+        readMouseRecord(XMLDocument, xpath, "//MOUSEA/DET", mouseARecords);
+        readMouseRecord(XMLDocument, xpath, "//MOUSEB/DET", mouseBRecords);
+    }
 
-                System.out.println("node size : " + nodes.getLength());
+    private void readMouseRecord(Document XMLDocument, XPath xpath, String expression, Map<Integer, MouseInfoRecord> mouseRecords) {
+        NodeList nodes;
+        try {
+            nodes = (NodeList) xpath.evaluate(expression, XMLDocument, XPathConstants.NODESET);
 
-                for (int i = 0; i < nodes.getLength(); i++) {
-                    Element detNode = (Element) nodes.item(i);
+            System.out.println("node size : " + nodes.getLength());
 
-                    Point2D bodyPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("bodyx")), Float.parseFloat(detNode.getAttribute("bodyy")));
-                    Point2D headPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("headx")), Float.parseFloat(detNode.getAttribute("heady")));
-                    Point2D tailPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("tailx")), Float.parseFloat(detNode.getAttribute("taily")));
+            for (int i = 0; i < nodes.getLength(); i++) {
+                Element detNode = (Element) nodes.item(i);
 
-                    float neckX = 0;
-                    float neckY = 0;
-                    try {
-                        neckX = Float.parseFloat(detNode.getAttribute("neckx"));
-                        neckY = Float.parseFloat(detNode.getAttribute("necky"));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    Point2D neckPosition = new Point2D.Float(neckX, neckY);
-                    MouseInfoRecord mouseInfoRecord = new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
+                Point2D bodyPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("bodyx")), Float.parseFloat(detNode.getAttribute("bodyy")));
+                Point2D headPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("headx")), Float.parseFloat(detNode.getAttribute("heady")));
+                Point2D tailPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("tailx")), Float.parseFloat(detNode.getAttribute("taily")));
 
-                    mouse1Records.put(Integer.parseInt(detNode.getAttribute("t")), mouseInfoRecord);
-
+                float neckX = 0;
+                float neckY = 0;
+                try {
+                    neckX = Float.parseFloat(detNode.getAttribute("neckx"));
+                    neckY = Float.parseFloat(detNode.getAttribute("necky"));
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            } catch (final XPathExpressionException e) {
-                e.printStackTrace();
+                Point2D neckPosition = new Point2D.Float(neckX, neckY);
+                MouseInfoRecord mouseInfoRecord = new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
+
+                mouseRecords.put(Integer.parseInt(detNode.getAttribute("t")), mouseInfoRecord);
+
             }
-        }
-
-        // MOUSE B LOAD
-        {
-            String expression = "//MOUSEB/DET";
-            NodeList nodes;
-            try {
-                nodes = (NodeList) xpath.evaluate(expression, XMLDocument, XPathConstants.NODESET);
-
-                System.out.println("node size : " + nodes.getLength());
-
-                for (int i = 0; i < nodes.getLength(); i++) {
-                    Element detNode = (Element) nodes.item(i);
-
-                    Point2D bodyPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("bodyx")), Float.parseFloat(detNode.getAttribute("bodyy")));
-                    Point2D headPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("headx")), Float.parseFloat(detNode.getAttribute("heady")));
-                    Point2D tailPosition = new Point2D.Float(Float.parseFloat(detNode.getAttribute("tailx")), Float.parseFloat(detNode.getAttribute("taily")));
-
-                    float neckX = 0;
-                    float neckY = 0;
-                    try {
-                        neckX = Float.parseFloat(detNode.getAttribute("neckx"));
-                        neckY = Float.parseFloat(detNode.getAttribute("necky"));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    Point2D neckPosition = new Point2D.Float(neckX, neckY);
-                    MouseInfoRecord mouseInfoRecord = new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
-
-                    mouse2Records.put(Integer.parseInt(detNode.getAttribute("t")), mouseInfoRecord);
-                }
-            } catch (final XPathExpressionException e) {
-                e.printStackTrace();
-            }
+        } catch (final XPathExpressionException e) {
+            e.printStackTrace();
         }
     }
 
@@ -815,12 +780,13 @@ public class PhyMouse implements ActionListener, ChangeListener {
         // CREATE DOCUMENT
         File XMLFile = new File(currentFile.getAbsoluteFile() + ".xml");
 
-        DocumentBuilderFactory dbfac = DocumentBuilderFactory.newInstance();
-        DocumentBuilder docBuilder = null;
+        DocumentBuilder docBuilder;
         try {
-            docBuilder = dbfac.newDocumentBuilder();
-        } catch (final ParserConfigurationException e) {
+            docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        } catch (ParserConfigurationException | FactoryConfigurationError e) {
             e.printStackTrace();
+            //TODO: display window
+            return;
         }
         Document XMLDocument = docBuilder.newDocument();
 
@@ -842,21 +808,17 @@ public class PhyMouse implements ActionListener, ChangeListener {
         resultChild.appendChild(resultMouseB);
 
         // FILL DATA
-        int maxT = 0;
-        {
-            Set<Integer> integerKey = mouse1Records.keySet();
-            Iterator<Integer> it = integerKey.iterator();
-            while (it.hasNext()) {
-                Integer t = it.next();
-                if (t > maxT) {
-                    maxT = t;
-                }
-            }
-        }
+        int maxT = Collections.max(mouseARecords.keySet());
+        saveMouseRecords(XMLDocument, resultMouseA, maxT, mouseARecords);
+        saveMouseRecords(XMLDocument, resultMouseB, maxT, mouseBRecords);
 
-        // MOUSE A
+        // SAVE DOC
+        XMLTools.saveDocument(XMLDocument, XMLFile);
+    }
+
+    private void saveMouseRecords(Document XMLDocument, Element resultMouse, int maxT, Map<Integer, MouseInfoRecord> mouseRecords) {
         for (int t = 0; t <= maxT; t++) {
-            MouseInfoRecord mouseAInfo = mouse1Records.get(t);
+            MouseInfoRecord mouseAInfo = mouseRecords.get(t);
             if (mouseAInfo == null) {
                 continue;
             }
@@ -876,46 +838,14 @@ public class PhyMouse implements ActionListener, ChangeListener {
             newResultElement.setAttribute("neckx", "" + mouseAInfo.getNeckPosition().getX());
             newResultElement.setAttribute("necky", "" + mouseAInfo.getNeckPosition().getY());
 
-            resultMouseA.appendChild(newResultElement);
+            resultMouse.appendChild(newResultElement);
         }
-
-        // MOUSE B
-
-        if (mouseList.size() > 1) { // check if two mice are presents
-            for (int t = 0; t <= maxT; t++) {
-                MouseInfoRecord mouseBInfo = mouse2Records.get(t);
-                if (mouseBInfo == null) {
-                    continue;
-                }
-
-                Element newResultElement = XMLDocument.createElement("DET");
-                newResultElement.setAttribute("t", "" + t);
-
-                newResultElement.setAttribute("headx", "" + mouseBInfo.getHeadPosition().getX());
-                newResultElement.setAttribute("heady", "" + mouseBInfo.getHeadPosition().getY());
-
-                newResultElement.setAttribute("bodyx", "" + mouseBInfo.getBodyPosition().getX());
-                newResultElement.setAttribute("bodyy", "" + mouseBInfo.getBodyPosition().getY());
-
-                newResultElement.setAttribute("tailx", "" + mouseBInfo.getTailPosition().getX());
-                newResultElement.setAttribute("taily", "" + mouseBInfo.getTailPosition().getY());
-
-                newResultElement.setAttribute("neckx", "" + mouseBInfo.getNeckPosition().getX());
-                newResultElement.setAttribute("necky", "" + mouseBInfo.getNeckPosition().getY());
-
-                resultMouseB.appendChild(newResultElement);
-            }
-        }
-
-        // SAVE DOC
-        XMLTools.saveDocument(XMLDocument, XMLFile);
     }
 
-    @Override
     public void stateChanged(ChangeEvent e) {
-        if (e.getSource() == binaryThresholdSpinner) {
+        /*if (e.getSource() == binaryThresholdSpinner) {
             thresholdBinaryMap = Integer.parseInt(binaryThresholdSpinner.getValue().toString());
-        }
+        }*/
     }
 
     public void setReverseThreshold(boolean reverseThresholdBoolean) {
@@ -936,26 +866,21 @@ public class PhyMouse implements ActionListener, ChangeListener {
     }
 
     public void recordMousePosition(int currentFrame) {
-        mouse1Records.put(currentFrame, getMouseInfoRecord(0));
-        mouse2Records.put(currentFrame, getMouseInfoRecord(1));
+        mouseARecords.put(currentFrame, getMouseInfoRecord(mouseA));
+        mouseBRecords.put(currentFrame, getMouseInfoRecord(mouseB));
     }
 
-    private void fillWindowPanel() {
-
-    }
-
-    private MouseInfoRecord getMouseInfoRecord(int i) {
-        Point2D headPosition = new Point2D.Float(mouseList.get(i).getHead().getPosition().getX(), mouseList.get(i).getHead().getPosition().getY());
-        Point2D tailPosition = new Point2D.Float(mouseList.get(i).getTail().getPosition().getX(), mouseList.get(i).getTail().getPosition().getY());
-        Point2D bodyPosition = new Point2D.Float(mouseList.get(i).getTommyBody().getPosition().getX(), mouseList.get(i).getTommyBody().getPosition().getY());
-        Point2D neckPosition = new Point2D.Float(mouseList.get(i).getNeckAttachBody().getPosition().getX(), mouseList.get(i).getNeckAttachBody().getPosition().getY());
+    private MouseInfoRecord getMouseInfoRecord(Mouse mouse) {
+        Point2D headPosition = new Point2D.Float(mouse.getHead().getPosition().getX(), mouse.getHead().getPosition().getY());
+        Point2D tailPosition = new Point2D.Float(mouse.getTail().getPosition().getX(), mouse.getTail().getPosition().getY());
+        Point2D bodyPosition = new Point2D.Float(mouse.getTommyBody().getPosition().getX(), mouse.getTommyBody().getPosition().getY());
+        Point2D neckPosition = new Point2D.Float(mouse.getNeckAttachBody().getPosition().getX(), mouse.getNeckAttachBody().getPosition().getY());
         return new MouseInfoRecord(headPosition, tailPosition, bodyPosition, neckPosition);
     }
 
     /**
-     * True: ajoute False: remove
      *
-     * @param set255
+     * @param set255 True: ajoute False: remove
      */
     private void drawCircleInMaskMap(int centreX, int centreY, int ray, IcyBufferedImage maskImage, boolean set255) {
         byte val = 0;

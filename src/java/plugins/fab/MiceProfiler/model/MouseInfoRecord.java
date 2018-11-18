@@ -1,4 +1,4 @@
-package plugins.fab.MiceProfiler;
+package plugins.fab.MiceProfiler.model;
 
 import java.awt.geom.Point2D;
 

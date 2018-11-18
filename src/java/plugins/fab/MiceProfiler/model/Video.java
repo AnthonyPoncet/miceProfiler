@@ -4,7 +4,7 @@ import java.awt.image.BufferedImage;
 
 import java.io.File;
 
-import plugins.fab.MiceProfiler.XugglerAviFile;
+import plugins.fab.MiceProfiler.Utilities.XugglerAviFile;
 
 
 public class Video {

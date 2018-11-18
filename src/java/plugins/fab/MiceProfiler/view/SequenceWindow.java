@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 
 import java.util.List;
 
+import com.google.common.collect.Lists;
 import icy.canvas.Canvas2D;
 
 import icy.gui.viewer.Viewer;
@@ -21,7 +22,6 @@ import icy.sequence.Sequence;
 import icy.system.thread.ThreadUtil;
 
 import plugins.fab.MiceProfiler.ManualHelper;
-import plugins.fab.MiceProfiler.MouseGuidePainter;
 import plugins.fab.MiceProfiler.model.Video;
 
 
@@ -29,10 +29,10 @@ public class SequenceWindow {
 
     private final Sequence sequence;
 
-    private MouseGuidePainter mouseGuidePainter;
+    private MouseGuidesPainter mouseGuidesPainter;
 
     /** list of all manual helper to disable certain action like record mode when an other engage it. */
-    private List<ManualHelper> manualHelperList;
+    private List<ManualHelper> manualHelperList = Lists.newArrayList();
 
     public SequenceWindow() {
         this.sequence = new Sequence();
@@ -69,7 +69,7 @@ public class SequenceWindow {
             sequence.removeOverlay(h);
         });
         manualHelperList.clear();
-        sequence.removeOverlay(mouseGuidePainter);
+        sequence.removeOverlay(mouseGuidesPainter);
         manualHelperList.add(new ManualHelper("Manual Helper", Color.RED, 1, manualHelperList));
         manualHelperList.add(new ManualHelper("Manual Helper", Color.GREEN, 2, manualHelperList));
         manualHelperList.forEach(h -> {
@@ -77,24 +77,25 @@ public class SequenceWindow {
             sequence.addOverlay(h);
         });
         //sequence.addOverlay(new LockScrollHelperOverlay());
-        mouseGuidePainter = new MouseGuidePainter();
-        sequence.addOverlay(mouseGuidePainter);
+        mouseGuidesPainter = new MouseGuidesPainter();
+        sequence.addOverlay(mouseGuidesPainter);
     }
 
-    //public paint
-
     public void displayImageAt(int frameNumber, Video video) {
-        if (video != null) {
-            if (sequence.getImage(frameNumber, 0) == null) {
-                boolean wasEmpty = sequence.getNumImage() == 0;
+        Viewer v = Icy.getMainInterface().getFirstViewer(sequence);
+        if (v != null) {
+            v.setPositionT(frameNumber);
+        }
 
-                sequence.setImage(frameNumber, 0, video.getImage(frameNumber));
+        if (sequence.getImage(frameNumber, 0) == null) {
+            boolean wasEmpty = sequence.getNumImage() == 0;
 
-                if (wasEmpty) {
-                    for (Viewer viewer : sequence.getViewers()) {
-                        if (viewer.getCanvas() instanceof Canvas2D) {
-                            ((Canvas2D) viewer.getCanvas()).centerImage();
-                        }
+            sequence.setImage(frameNumber, 0, video.getImage(frameNumber));
+
+            if (wasEmpty) {
+                for (Viewer viewer : sequence.getViewers()) {
+                    if (viewer.getCanvas() instanceof Canvas2D) {
+                        ((Canvas2D) viewer.getCanvas()).centerImage();
                     }
                 }
             }
@@ -103,5 +104,9 @@ public class SequenceWindow {
 
     public Sequence getSequence() {
         return sequence;
+    }
+
+    public MouseGuidesPainter getMouseGuidesPainter() {
+        return mouseGuidesPainter;
     }
 }

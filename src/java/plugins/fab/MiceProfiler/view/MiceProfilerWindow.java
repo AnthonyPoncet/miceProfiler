@@ -2,36 +2,12 @@ package plugins.fab.MiceProfiler.view;
 
 import java.awt.*;
 import java.awt.event.ActionListener;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
 
 import javax.swing.*;
 import javax.swing.event.ChangeListener;
 
-import icy.canvas.IcyCanvas;
-import icy.canvas.IcyCanvas2D;
-
 import icy.gui.frame.IcyFrame;
 import icy.gui.util.GuiUtil;
-
-import icy.image.IcyBufferedImageUtil;
-
-import icy.painter.Overlay;
-
-import icy.sequence.Sequence;
-
-import net.phys2d.math.ROVector2f;
-import net.phys2d.raw.Body;
-import net.phys2d.raw.DistanceJoint;
-import net.phys2d.raw.SlideJoint;
-import net.phys2d.raw.shapes.Box;
-import net.phys2d.raw.shapes.Circle;
-
-import plugins.fab.MiceProfiler.MouseInfoRecord;
-import plugins.fab.MiceProfiler.model.EnergyInfo;
-import plugins.fab.MiceProfiler.model.EnergyMap;
 
 
 public class MiceProfilerWindow {
@@ -44,7 +20,6 @@ public class MiceProfilerWindow {
     private final JSlider sliderTime = new JSlider();
     private final JCheckBox useImageBufferOptimisation = new JCheckBox("Use image load optimisation", true);
     private final JTextField numberOfImageForBufferTextField = new JTextField("200");
-    private final JLabel currentBufferLabel = new JLabel("Current buffer:");
     private final JLabel bufferValue = new JLabel("0%");
     private final JButton previousFrame = new JButton("Previous Frame");
     private final JButton nextFrame = new JButton("Next Frame");
@@ -78,10 +53,8 @@ public class MiceProfilerWindow {
     private final JCheckBox displayDistanceJointCheckBox = new JCheckBox("Distance Joint", true);
     private final JCheckBox displayMemoryCheckBox = new JCheckBox("Track Memory", true);
     private final JCheckBox useMotionPredictionCheckBox = new JCheckBox("Use motion prediction", false);
-    private int thresholdBinaryMap = 30;
-    private final JSpinner binaryThresholdSpinner = new JSpinner(new SpinnerNumberModel(thresholdBinaryMap, 0, 255, 10));
-    private float mouseScaleModel = 0.22f;
-    private final JTextField scaleTextField = new JTextField(Float.toString(mouseScaleModel));
+    private final JSpinner binaryThresholdSpinner = new JSpinner(new SpinnerNumberModel(30, 0, 255, 10));
+    private final JTextField scaleTextField = new JTextField("0.22");
 
     public void initialize(ActionListener actionListener, ChangeListener changeListener) {
         //Initialize Mice Profiler window
@@ -100,14 +73,14 @@ public class MiceProfilerWindow {
         mainPanel.add(GuiUtil.besidesPanel(lastFrameForceMapTime, totalImageTime));
         trackAllButton.addActionListener(actionListener);
         stopTrackAllButton.addActionListener(actionListener);
-        stopTrackAllButton.setEnabled(false);
         readPositionFromROIButton.addActionListener(actionListener);
         saveXMLButton.addActionListener(actionListener);
         mouseColorComboBox.addActionListener(actionListener);
         reverseTrackFromTButton.addActionListener(actionListener);
         startThreadStepButton.addActionListener(actionListener);
         stopThreadStepButton.addActionListener(actionListener);
-        stopThreadStepButton.setEnabled(false);
+
+        enableAtStart();
 
         mainFrame.pack();
         mainFrame.center();
@@ -115,28 +88,89 @@ public class MiceProfilerWindow {
         mainFrame.addToDesktopPane();
     }
 
-    public boolean hasBeenTrigeredByVideo(Object source) {
+    /** Triggered **/
+    public boolean hasBeenTriggeredByVideoSourceButton(Object source) {
         return source == setVideoSourceButton;
+    }
+    public boolean hasBeenTriggeredBySliderTime(Object source) {
+        return source == sliderTime;
     }
 
     public boolean hasBeenTriggeredByPreviousFrame(Object source) {
         return source == previousFrame;
     }
-
-    public boolean hasBeenTriggeredByPrevious10Frame(Object source) {
-        return source == previous10Frame;
-    }
-
     public boolean hasBeenTriggeredByNextFrame(Object source) {
         return source == nextFrame;
     }
-
+    public boolean hasBeenTriggeredByPrevious10Frame(Object source) {
+        return source == previous10Frame;
+    }
     public boolean hasBeenTriggeredByNext10Frame(Object source) {
         return source == next10Frame;
     }
 
+    public boolean hasBeenTriggeredByTrackAllButton(Object source) {
+        return source == trackAllButton;
+    }
+    public boolean hasBeenTriggeredByStopTrackAllButton(Object source) {
+        return source == stopTrackAllButton;
+    }
+
+    public boolean hasBeenTriggeredByReadPositionFromROIButton(Object source) {
+        return source == readPositionFromROIButton;
+    }
+
     public boolean hasBeenTriggeredBySaveXML(Object source) {
         return source == saveXMLButton;
+    }
+
+    public boolean hasBeenTriggeredByReverseTrackFromTButton(Object source) {
+        return source == reverseTrackFromTButton;
+    }
+
+    public boolean hasBeenTriggeredByStartThreadStepButton(Object source) {
+        return source == startThreadStepButton;
+    }
+    public boolean hasBeenTriggeredByStopThreadStepButton(Object source) {
+        return source == stopThreadStepButton;
+    }
+
+    /** Inputs **/
+    public synchronized int getCurrentFrame() {
+        return sliderTime.getValue();
+    }
+
+    public boolean useImageBufferOptimisation() { return useImageBufferOptimisation.isSelected(); }
+    public int numberOfImageForBufferOptimisation() throws NumberFormatException { return Integer.parseInt(numberOfImageForBufferTextField.getText()); }
+
+    public boolean updatePhysicsGuides() { return updatePhysicsGuidesCheckBox.isSelected(); }
+
+    public boolean limitTrackingSpeed() { return limitTrackingSpeedCheckBox.isSelected(); }
+
+    public String mouseColor() { return mouseColorComboBox.getActionCommand(); }
+
+    public boolean displayBinaryMap() { return displayBinaryMapCheckBox.isSelected(); }
+    public boolean displayGradientMap() { return displayGradientMapCheckBox.isSelected(); }
+    public boolean displayForce() { return displayForceCheckBox.isSelected(); }
+    public boolean displayEnergyArea() { return displayEnergyAreaCheckBox.isSelected(); }
+    public boolean displayBodyCenter() { return displayBodyCenterCheckBox.isSelected(); }
+    public boolean displayBodyShape() { return displayBodyShapeCheckBox.isSelected(); }
+    public boolean displayGlobalSpline() { return displayGlobalSplineCheckBox.isSelected(); }
+    public boolean displaySlideJoint() { return displaySlideJointCheckBox.isSelected(); }
+    public boolean displayDistanceJoint() { return displayDistanceJointCheckBox.isSelected(); }
+    public boolean displayMemory() { return displayMemoryCheckBox.isSelected(); }
+
+    public boolean useMotionPrediction() { return useMotionPredictionCheckBox.isSelected(); }
+
+    public int binaryThreshold() { return (int)binaryThresholdSpinner.getValue(); }
+    public float mouseModelScale() { return Float.parseFloat(scaleTextField.getText()); }
+
+    /** Outputs **/
+    public synchronized void setSliderTimeValue(int value) {
+        sliderTime.setValue(value);
+    }
+    public synchronized void setRelativeSliderValue(int offset) {
+        sliderTime.setValue(sliderTime.getValue() + offset);
     }
 
     public void setBufferValue(int newBufferValue) {
@@ -148,52 +182,72 @@ public class MiceProfilerWindow {
         currentTimeLabel.setText(timeString);
     }
 
-    public synchronized void initializeSlider(int maxValue) {
-        sliderTime.setValue(0);
-        sliderTime.setMaximum(maxValue);
-    }
-
-    public synchronized int getCurrentFrame() {
-        return sliderTime.getValue();
-    }
-
-    public synchronized int getTotalNumberOfFrame() {
-        return sliderTime.getMaximum();
-    }
-
-    public synchronized void setSliderTimeValue(int value) {
-        sliderTime.setValue(value);
-    }
-
-    public synchronized void setRelativeSliderValue(int offset) {
-        sliderTime.setValue(sliderTime.getValue() + offset);
-    }
-
-    public int getNumberOfImageForBuffer() {
-        return Integer.parseInt(numberOfImageForBufferTextField.getText());
-    }
-
-    public void setUseImageBufferOptimisation(boolean value) {
-        useImageBufferOptimisation.setEnabled(value);
-    }
-
-    public void setNumberOfImageForBufferTextField(boolean value) {
-        numberOfImageForBufferTextField.setEnabled(value);
-    }
-
     public void setTotalImageTimeText(String text) {
         totalImageTime.setText(text);
     }
 
-    public boolean isLimitTrackingSpeedCheckBoxChecked() {
-        return limitTrackingSpeedCheckBox.isSelected();
+    /** Enable/disable elements **/
+    private void enableAtStart() {
+        setVideoSourceButton.setEnabled(true);
+        sliderTime.setEnabled(false);
+        sliderTime.setValue(0);
+        useImageBufferOptimisation.setEnabled(true);
+        bufferValue.setEnabled(true);
+        previousFrame.setEnabled(false);
+        nextFrame.setEnabled(false);
+        previous10Frame.setEnabled(false);
+        next10Frame.setEnabled(false);
+        updatePhysicsGuidesCheckBox.setEnabled(true);
+        trackAllButton.setEnabled(false);
+        stopTrackAllButton.setEnabled(false);
+        readPositionFromROIButton.setEnabled(false);
+        saveXMLButton.setEnabled(false);
+        limitTrackingSpeedCheckBox.setEnabled(true);
+        mouseColorComboBox.setEnabled(true);
+        reverseTrackFromTButton.setEnabled(true);
+        displayBinaryMapCheckBox.setEnabled(true);
+        displayGradientMapCheckBox.setEnabled(true);
+        displayForceCheckBox.setEnabled(true);
+        displayEnergyAreaCheckBox.setEnabled(true);
+        displayBodyCenterCheckBox.setEnabled(true);
+        displayBodyShapeCheckBox.setEnabled(true);
+        displayGlobalSplineCheckBox.setEnabled(true);
+        displaySlideJointCheckBox.setEnabled(true);
+        displayDistanceJointCheckBox.setEnabled(true);
+        displayMemoryCheckBox.setEnabled(true);
+        useMotionPredictionCheckBox.setEnabled(true);
+        binaryThresholdSpinner.setEnabled(true);
+        mouseColorComboBox.setEnabled(true);
+        startThreadStepButton.setEnabled(false);
+        stopThreadStepButton.setEnabled(false);
     }
 
-    public boolean isUpdatePhysicsGuidesCheckBoxChecked() {
-        return updatePhysicsGuidesCheckBox.isSelected();
+    public void enableAfterVideoLoading(long videoTotalNumberOfFrame, String timeForFrame) {
+        sliderTime.setEnabled(true);
+        sliderTime.setValue(0);
+        sliderTime.setMaximum((int)videoTotalNumberOfFrame);
+        setCurrentTimeLabel(0, videoTotalNumberOfFrame, timeForFrame);
+
+        previousFrame.setEnabled(true);
+        nextFrame.setEnabled(true);
+        previous10Frame.setEnabled(true);
+        next10Frame.setEnabled(true);
+        trackAllButton.setEnabled(true);
+        readPositionFromROIButton.setEnabled(true);
+        saveXMLButton.setEnabled(true);
+        startThreadStepButton.setEnabled(true);
+        useImageBufferOptimisation.setEnabled(false);
+        numberOfImageForBufferTextField.setEnabled(false);
     }
 
-    public void deactivateTrackAll() {
+    public void enableAfterTrackAllStarted() {
+        stopTrackAllButton.setEnabled(true);
+        trackAllButton.setEnabled(false);
+        startThreadStepButton.setEnabled(false);
+        readPositionFromROIButton.setEnabled(false);
+    }
+
+    public void enableAfterTrackAllStopped() {
         stopTrackAllButton.setEnabled(false);
         trackAllButton.setEnabled(true);
         startThreadStepButton.setEnabled(true);
@@ -205,7 +259,7 @@ public class MiceProfilerWindow {
         videoPanel.add(GuiUtil.besidesPanel(setVideoSourceButton));
         videoPanel.add(GuiUtil.besidesPanel(sliderTime));
         videoPanel.add(GuiUtil.besidesPanel(useImageBufferOptimisation, numberOfImageForBufferTextField));
-        videoPanel.add(GuiUtil.besidesPanel(currentBufferLabel, bufferValue));
+        videoPanel.add(GuiUtil.besidesPanel(new JLabel("Current buffer:"), bufferValue));
         videoPanel.add(GuiUtil.besidesPanel(previousFrame, nextFrame));
         videoPanel.add(GuiUtil.besidesPanel(previous10Frame, next10Frame));
         videoPanel.add(GuiUtil.besidesPanel(updatePhysicsGuidesCheckBox));

@@ -1,45 +1,44 @@
-package plugins.fab.MiceProfiler.view;
-
-import java.awt.*;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
+package plugins.fab.MiceProfiler.controller;
 
 import icy.canvas.IcyCanvas;
 import icy.canvas.IcyCanvas2D;
-
 import icy.image.IcyBufferedImageUtil;
-
 import icy.painter.Overlay;
-
 import icy.sequence.Sequence;
-
+import icy.sequence.VolumetricImage;
+import icy.type.point.Point5D;
 import net.phys2d.math.ROVector2f;
 import net.phys2d.raw.Body;
 import net.phys2d.raw.DistanceJoint;
 import net.phys2d.raw.SlideJoint;
 import net.phys2d.raw.shapes.Box;
 import net.phys2d.raw.shapes.Circle;
-
-import plugins.fab.MiceProfiler.MouseInfoRecord;
+import plugins.fab.MiceProfiler.PhyMouse;
 import plugins.fab.MiceProfiler.model.EnergyInfo;
 import plugins.fab.MiceProfiler.model.EnergyMap;
+import plugins.fab.MiceProfiler.model.Video;
+import plugins.fab.MiceProfiler.view.MiceProfilerWindow;
+
+import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 
 
-public class MiceProfilerOverlay extends Overlay {
+public class SequenceOverlay extends Overlay {
 
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Constructors
-    //~ ----------------------------------------------------------------------------------------------------------------
+    private final VideoManager videoManager;
+    private final PhyMouseManager phyMouseManager;
+    private final MiceProfilerWindow miceProfilerWindow;
 
-    public MiceProfilerOverlay() {
-        super("MiceProfilerOverlay");
+    public SequenceOverlay(VideoManager videoManager, PhyMouseManager phyMouseManager, MiceProfilerWindow miceProfilerWindow) {
+        super("SequenceOverlay");
+        this.videoManager = videoManager;
+        this.phyMouseManager = phyMouseManager;
+        this.miceProfilerWindow = miceProfilerWindow;
     }
-
-    //~ ----------------------------------------------------------------------------------------------------------------
-    //~ Methods
-    //~ ----------------------------------------------------------------------------------------------------------------
 
     @Override
     public void paint(Graphics2D g, Sequence sequence, IcyCanvas canvas) {
@@ -47,25 +46,30 @@ public class MiceProfilerOverlay extends Overlay {
             return;
         }
 
+        PhyMouse phyMouse = phyMouseManager.getPhyMouse();
+        if (phyMouse == null) {
+            return;
+        }
+
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setStroke(new BasicStroke(0.3f));
         g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
-        if (displayBinaryMapCheckBox.isSelected()) {
-            if (binaryMap != null) {
-                g2.drawImage(IcyBufferedImageUtil.toBufferedImage(binaryMap, null), null, 0, 0);
+        if (miceProfilerWindow.displayBinaryMap()) {
+            if (phyMouse.getBinaryMap() != null) {
+                g2.drawImage(IcyBufferedImageUtil.toBufferedImage(phyMouse.getBinaryMap(), null), null, 0, 0);
             }
         }
-        if (displayGradientMapCheckBox.isSelected()) {
-            if (edgeMap != null) {
-                g2.drawImage(IcyBufferedImageUtil.toBufferedImage(edgeMap, null), null, 0, 0);
+        if (miceProfilerWindow.displayGradientMap()) {
+            if (phyMouse.getEdgeMap() != null) {
+                g2.drawImage(IcyBufferedImageUtil.toBufferedImage(phyMouse.getEdgeMap(), null), null, 0, 0);
             }
         }
-        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
 
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         // paint SlideJoint
-        if (displaySlideJointCheckBox.isSelected()) {
+        if (miceProfilerWindow.displaySlideJoint()) {
             g2.setColor(Color.ORANGE);
-            for (SlideJoint slideJoint : slideJointList) {
+            for (SlideJoint slideJoint : phyMouse.getSlideJointList()) {
                 Line2D line = new Line2D.Float(slideJoint.getBody1().getLastPosition().getX(), slideJoint.getBody1().getLastPosition().getY(), slideJoint.getBody2().getLastPosition().getX(),
                         slideJoint.getBody2().getLastPosition().getY());
                 g2.draw(line);
@@ -73,9 +77,9 @@ public class MiceProfilerOverlay extends Overlay {
         }
 
         // paint DistanceJoint
-        if (displayDistanceJointCheckBox.isSelected()) {
+        if (miceProfilerWindow.displayDistanceJoint()) {
             g2.setColor(Color.YELLOW);
-            for (DistanceJoint distanceJoint : distanceJointList) {
+            for (DistanceJoint distanceJoint : phyMouse.getDistanceJointList()) {
                 Line2D line = new Line2D.Float(distanceJoint.getBody1().getLastPosition().getX(), distanceJoint.getBody1().getLastPosition().getY(), distanceJoint.getBody2().getLastPosition().getX(),
                         distanceJoint.getBody2().getLastPosition().getY());
                 g2.draw(line);
@@ -83,18 +87,18 @@ public class MiceProfilerOverlay extends Overlay {
         }
 
         // paint Bodie's center
-        if (displayBodyCenterCheckBox.isSelected()) {
+        if (miceProfilerWindow.displayBodyCenter()) {
             g2.setColor(Color.BLUE);
-            for (Body body : bodyList) {
+            for (Body body : phyMouse.getBodyList()) {
                 Ellipse2D ellipse = new Ellipse2D.Float(body.getLastPosition().getX() - 1.5f, body.getLastPosition().getY() - 1.5f, 3, 3);
                 g2.draw(ellipse);
             }
         }
 
         // paint Bodie's shape (if any)
-        if (displayBodyShapeCheckBox.isSelected()) {
+        if (miceProfilerWindow.displayBodyShape()) {
             g2.setColor(Color.WHITE);
-            for (Body body : bodyList) {
+            for (Body body : phyMouse.getBodyList()) {
                 net.phys2d.raw.shapes.Shape shape = body.getShape();
                 if (shape != null) {
                     if (shape instanceof net.phys2d.raw.shapes.Polygon) {
@@ -142,7 +146,7 @@ public class MiceProfilerOverlay extends Overlay {
         }
 
         // paint Energy area
-        for (Body body : bodyList) {
+        for (Body body : phyMouse.getBodyList()) {
             g2.setStroke(new BasicStroke(0.5f));
             EnergyInfo energyInfo = (EnergyInfo) body.getUserData();
             switch (energyInfo.getEnergyMap()) {
@@ -164,7 +168,7 @@ public class MiceProfilerOverlay extends Overlay {
                 break;
             }
 
-            if (displayEnergyAreaCheckBox.isSelected()) {
+            if (miceProfilerWindow.displayEnergyArea()) {
                 if (energyInfo.getEnergyMap() != EnergyMap.NO_ENERGY) {
                     Ellipse2D ellipse = new Ellipse2D.Float(body.getLastPosition().getX() - energyInfo.getRay(), body.getLastPosition().getY() - energyInfo.getRay(), (energyInfo.getRay() * 2) + 1,
                             (energyInfo.getRay() * 2) + 1);
@@ -172,11 +176,11 @@ public class MiceProfilerOverlay extends Overlay {
                 }
             }
 
-            boolean displayForce = displayForceCheckBox.isSelected();
-            if (displayBinaryMapCheckBox.isSelected() && (energyInfo.getEnergyMap() != EnergyMap.BINARY_MOUSE)) {
+            boolean displayForce = miceProfilerWindow.displayForce();
+            if (miceProfilerWindow.displayBinaryMap() && (energyInfo.getEnergyMap() != EnergyMap.BINARY_MOUSE)) {
                 displayForce = false;
             }
-            if (displayGradientMapCheckBox.isSelected() && (energyInfo.getEnergyMap() != EnergyMap.GRADIENT_MAP)) {
+            if (miceProfilerWindow.displayGradientMap() && (energyInfo.getEnergyMap() != EnergyMap.GRADIENT_MAP)) {
                 displayForce = false;
             }
             if (displayForce) {
@@ -187,18 +191,18 @@ public class MiceProfilerOverlay extends Overlay {
 
         g2.setColor(Color.BLUE);
 
-        if (motion_prediction_state) {
+        /*if (motion_prediction_state) {
             g2.setColor(Color.WHITE);
             g2.drawString("Motion prediction (movie slowed)", 20, 200);
-        }
+        }*/
 
         g2.setColor(Color.WHITE);
 
         // Display at t (passe egalement) of mouseA and mouseB
         int currentFrame = 0;
-        if (displayMemoryCheckBox.isSelected()) {
+        if (miceProfilerWindow.displayMemory()) {
             // Mouse A
-            MouseInfoRecord mouseAInfo = mouse1Records.get(currentFrame);
+            /*MouseInfoRecord mouseAInfo = mouse1Records.get(currentFrame);
             if (mouseAInfo != null) {
                 g2.setColor(Color.RED);
 
@@ -230,7 +234,54 @@ public class MiceProfilerOverlay extends Overlay {
                 g2.draw(ellipseHead);
                 g2.draw(ellipseBody);
                 g2.draw(ellipseTail);
-            }
+            }*/
+        }
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e, Point5D.Double point5D, IcyCanvas quiaCanvas) {
+        // shortcuts:
+        switch (e.getKeyCode()) {
+
+            case KeyEvent.VK_LEFT:
+                videoManager.advanceFrame(-1);
+                e.consume();
+                break;
+
+            case KeyEvent.VK_RIGHT:
+                videoManager.advanceFrame(1);
+                e.consume();
+                break;
+
+            case KeyEvent.VK_DOWN:
+                videoManager.advanceFrame(-10);
+                e.consume();
+                break;
+
+            case KeyEvent.VK_UP:
+                videoManager.advanceFrame(10);
+                e.consume();
+                break;
+
+            case KeyEvent.VK_SPACE:
+                /*if (trackAllThread == null) {
+                    startTrackAll();
+                } else {
+                    if (!trackAllThread.isAlive()) {
+                        startTrackAll();
+                    } else {
+                        stopTrackAll();
+                    }
+                }*/
+                e.consume();
+                break;
+        }
+
+        if (e.getKeyChar() == 'r') {
+            /*readPositionFromROI();
+            displayRelativeFrame(1);
+            readPositionFromROI();*/
+            e.consume();
         }
     }
 }

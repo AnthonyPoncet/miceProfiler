@@ -4,6 +4,7 @@ import javax.swing.*;
 
 import icy.image.IcyBufferedImage;
 
+import icy.painter.Overlay;
 import icy.sequence.Sequence;
 
 
@@ -40,12 +41,12 @@ public class StepThread extends Thread {
             }
 
             synchronized (phyMouse) {
-                phyMouse.computeForcesMap(imageSource);
+                phyMouse.generateMap(imageSource);
                 phyMouse.computeForces();
                 phyMouse.worldStep(sliderTime.getValue());
             }
 
-            sequence.painterChanged(null);
+            sequence.overlayChanged((Overlay)null);
         }
     }
 }

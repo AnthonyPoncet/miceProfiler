@@ -1,4 +1,4 @@
-package plugins.fab.MiceProfiler;
+package plugins.fab.MiceProfiler.model;
 
 import java.awt.geom.Point2D;
 
@@ -10,11 +10,10 @@ import net.phys2d.raw.World;
 import net.phys2d.raw.shapes.Box;
 import net.phys2d.raw.shapes.Circle;
 
-import plugins.fab.MiceProfiler.model.EnergyInfo;
-import plugins.fab.MiceProfiler.model.EnergyMap;
+import plugins.fab.MiceProfiler.PhyMouse;
 
 
-class Mouse {
+public class Mouse {
 
     //~ ----------------------------------------------------------------------------------------------------------------
     //~ Static fields/initializers
@@ -137,7 +136,7 @@ class Mouse {
         world.add(tail);
         world.add(new FixedJoint(tommyBody, tail));
 
-        for (Mouse mouse : phyMouse.getMouseList()) {
+        /*for (Mouse mouse : phyMouse.getMouseList()) {
             // create link with existing mice
             if (mouse != this) {
                 for (Body bodyA : bodyList) {
@@ -152,7 +151,7 @@ class Mouse {
                     }
                 }
             }
-        }
+        }*/
     }
 
     //~ ----------------------------------------------------------------------------------------------------------------

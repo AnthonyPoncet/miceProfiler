@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with MiceProfiler. If not, see <http://www.gnu.org/licenses/>.
  */
-package plugins.fab.MiceProfiler;
+package plugins.fab.MiceProfiler.Utilities;
 
 import java.io.File;
 
